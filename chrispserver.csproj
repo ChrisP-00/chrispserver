@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CloudStructures" Version="3.4.1" />
+    <PackageReference Include="MySqlConnector" Version="2.4.0" />
+    <PackageReference Include="SqlKata" Version="4.0.1" />
+    <PackageReference Include="SqlKata.Execution" Version="4.0.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Controllers\" />
+    <Folder Include="DBSchema\" />
+    <Folder Include="DBModels\" />
+    <Folder Include="DBConfigurations\" />
+    <Folder Include="ResReqModels\" />
+    <Folder Include="Middlewares\" />
+    <Folder Include="Securities\" />
+    <Folder Include="Services\" />
+  </ItemGroup>
+
+</Project>
