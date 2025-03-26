@@ -14,14 +14,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Controllers\" />
     <Folder Include="DBSchema\" />
-    <Folder Include="DBModels\" />
-    <Folder Include="DBConfigurations\" />
-    <Folder Include="ResReqModels\" />
     <Folder Include="Middlewares\" />
     <Folder Include="Securities\" />
-    <Folder Include="Services\" />
   </ItemGroup>
 
 </Project>
