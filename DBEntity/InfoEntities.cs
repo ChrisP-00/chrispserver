@@ -1,4 +1,4 @@
-﻿namespace chrispserver.DBEntity;
+﻿namespace chrispserver.DbEntity;
 
 public class InfoEntities
 {
@@ -11,7 +11,8 @@ public class InfoEntities
 
     public class Goods
     {
-        public byte Goods_Index { get; set; }
+        public int Goods_Index { get; set; }
+        public int Type { get; set; }
         public string? Name { get; set; }
     }
 
@@ -37,18 +38,7 @@ public class InfoEntities
         public int Daily_Mission_Index { get; set; }
         public int Type { get; set; }
         public int Goods_Index { get; set; }
-        public byte Amount { get; set; }
-        public int Reward_Type { get; set; }
-        public int Reward_Amount { get; set; }
-    }
-
-
-    public class CharacterMission
-    {
-        public int Character_Mission_Index { get; set; }
-        public int Character_Index { get; set; }
-        public int Daily_Mission_Index { get; set; }
-        public byte Amount { get; set; }
+        public int Quantity { get; set; }
         public int Reward_Type { get; set; }
         public int Reward_Amount { get; set; }
     }

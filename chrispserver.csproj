@@ -14,7 +14,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="DBSchema\" />
+    <Folder Include="DbSchema\" />
     <Folder Include="Middlewares\" />
     <Folder Include="Securities\" />
   </ItemGroup>

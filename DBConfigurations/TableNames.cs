@@ -1,4 +1,4 @@
-﻿namespace chrispserver.DBConfigurations;
+﻿namespace chrispserver.DbConfigurations;
 
 public static class TableNames
 {
@@ -22,11 +22,11 @@ public static class TableNames
 
 
     // master db
-    public static readonly string InfoCharacter = "info_character";
+    public static readonly string InfoCharacter = "character";
 
-    public static readonly string InfoGoods = "info_goods";
+    public static readonly string Goods = "goods";
 
-    public static readonly string InfoItem = "info_item";
+    public static readonly string InfoItem = "item";
 
 }
 

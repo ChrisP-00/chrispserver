@@ -1,4 +1,4 @@
-﻿namespace chrispserver.DBEntity;
+﻿namespace chrispserver.DbEntity;
 
 public class UserEntities
 {

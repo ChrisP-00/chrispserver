@@ -1,6 +1,6 @@
-﻿using chrispserver.DBConfigurations;
+﻿using chrispserver.DbConfigurations;
 using SqlKata.Execution;
-using static chrispserver.DBEntity.InfoEntities;
+using static chrispserver.DbEntity.InfoEntities;
 
 namespace chrispserver.Services;
 
@@ -9,7 +9,6 @@ public class MasterDBService : IMaster
     private readonly ConnectionManager _connectionManager;
 
     public List<Character> Characters { get; private set; } = new();
-    public List<CharacterMission> CharacterMissions { get; private set; } = new();
     public List<DailyMission> DailyMissions { get; private set; } = new();
     public List<Define> Defines { get; private set; } = new();
     public List<Goods> Goods { get; private set; } = new();
@@ -25,7 +24,6 @@ public class MasterDBService : IMaster
         var db = _connectionManager.GetSqlQueryFactory(DbKeys.MasterDataDB);
 
         Characters = (await db.Query("character").GetAsync<Character>()).ToList();
-        CharacterMissions = (await db.Query("character_mission").GetAsync<CharacterMission>()).ToList();
         DailyMissions = (await db.Query("daily_mission").GetAsync<DailyMission>()).ToList();
         Defines = (await db.Query("define").GetAsync<Define>()).ToList();
         Goods = (await db.Query("goods").GetAsync<Goods>()).ToList();

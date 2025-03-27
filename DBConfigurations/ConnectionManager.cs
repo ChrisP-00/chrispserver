@@ -4,7 +4,7 @@ using SqlKata.Compilers;
 using SqlKata.Execution;
 using System.Collections.Concurrent;
 
-namespace chrispserver.DBConfigurations;
+namespace chrispserver.DbConfigurations;
 
 public class ConnectionManager : IDisposable
 {

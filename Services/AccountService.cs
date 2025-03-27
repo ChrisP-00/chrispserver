@@ -1,21 +1,21 @@
 ﻿
-using chrispserver.DBConfigurations;
+using chrispserver.DbConfigurations;
 using chrispserver.ResReqModels;
 using SqlKata.Execution;
-using static chrispserver.DBEntity.UserEntities;
+using static chrispserver.DbEntity.UserEntities;
 using System.Data.Common;
 using static chrispserver.ResReqModels.Request;
 using static chrispserver.ResReqModels.Response;
 using System.Transactions;
 using System.Xml.Linq;
-using static chrispserver.DBEntity.InfoEntities;
+using static chrispserver.DbEntity.InfoEntities;
 using System.Collections.Generic;
 
 namespace chrispserver.Services;
 
 public class AccountService : IAccount
 {
-     private readonly IMaster _master;
+    private readonly IMaster _master;
     private readonly ConnectionManager _connectionManager;
 
     public AccountService(ConnectionManager connectionManager, IMaster master)
@@ -177,12 +177,12 @@ public class AccountService : IAccount
 
         var resultData = new Res_Login
         {
-            userAccount = userAccount,
-            userCharacters = userCharacters.ToList(),
-            userInventories = userInventories.ToList(),
-            userGoods = userGoods.ToList(),
-            userDailyMission = userDailyMissions.ToList(),
-            userCharacterMissions = userCharacterMissions.ToList()
+            UserAccount = userAccount,
+            UserCharacters = userCharacters.ToList(),
+            UserInventories = userInventories.ToList(),
+            UserGoods = userGoods.ToList(),
+            UserDailyMission = userDailyMissions.ToList(),
+            UserCharacterMissions = userCharacterMissions.ToList()
         };
 
         // 마지막 로그인 시간 변경 

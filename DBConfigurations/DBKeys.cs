@@ -1,4 +1,4 @@
-﻿namespace chrispserver.DBConfigurations;
+﻿namespace chrispserver.DbConfigurations;
 
 public class DbKeys
 {

@@ -1,4 +1,4 @@
-using chrispserver.DBConfigurations;
+using chrispserver.DbConfigurations;
 using chrispserver.Services;
 
 var builder = WebApplication.CreateBuilder(args);
