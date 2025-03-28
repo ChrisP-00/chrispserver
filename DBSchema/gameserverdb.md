@@ -32,9 +32,10 @@ CREATE TABLE IF NOT EXISTS gameserverdb.`user_character` (
     character_index	            INT	         NOT NULL   COMMENT '캐릭터 고유 식별자',
     level	                    INT	         NOT NULL DEFAULT 0     COMMENT '캐릭터 레벨',
     exp	                        INT	         NOT NULL DEFAULT 0     COMMENT '캐릭터 경험치',
-    quantity	                INT	         NOT NULL DEFAULT 1     COMMENT '캐릭터 보유 수량',
-    is_active	                BOOL         NOT NULL DEFAULT FALSE     COMMENT	'현재 키우는 중인지 여부 (0 = 아님, 1 = 키우는 중)',
-    owned_at	                DATETIME DEFAULT CURRENT_TIMESTAMP	    COMMENT	'캐릭터 소유 날짜	',
+    is_active	                BOOL         NOT NULL DEFAULT FALSE     COMMENT	'현재 키우는 중인지 여부',
+    is_acquired                 BOOL         NOT NULL DEFAULT FALSE     COMMENT '캐릭터를 획득하였는지 여부',
+    equipped_at                 DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '캐릭터 장착 날짜',
+    acquired_at	                DATETIME     DEFAULT NULL	COMMENT	'캐릭터 획득 날짜	',
     PRIMARY KEY (user_index, character_index)
 ) COMMENT='유저 캐릭터 정보 테이블';
 ```
@@ -86,25 +87,11 @@ DROP TABLE IF EXISTS gameserverdb.`user_daily_mission`;
 CREATE TABLE IF NOT EXISTS gameserverdb.`user_daily_mission` (
     user_index          INT NOT NULL    COMMENT '사용자 고유 식별자',
     mission_index       INT NOT NULL    COMMENT '일일 미션 고유 인덱스',
-    amount              INT NOT NULL DEFAULT 0  COMMENT '수행 횟수',
+    quantity              INT NOT NULL DEFAULT 0  COMMENT '수행 횟수',
     is_received         BOOL NOT NULL DEFAULT FALSE COMMENT '수령 여부',
     received_at         DATETIME    COMMENT '수령 완료 날짜 - 날이 지나면 초기화',
     PRIMARY KEY (user_index, mission_index)
 ) COMMENT='유저 일일 미션 테이블';
-```
-
-## User_Character_Mission Table
-
-```sql
-DROP TABLE IF EXISTS gameserverdb.`user_character_mission`;
-CREATE TABLE IF NOT EXISTS gameserverdb.`user_character_mission` (
-    user_index          INT NOT NULL    COMMENT '사용자 고유 식별자',
-    mission_index       INT NOT NULL    COMMENT '캐릭터 미션 고유 인덱스',
-    quantity            INT NOT NULL    COMMENT '수행 횟수',
-    is_received         BOO NOT NULL DEFAULT FALSE  COMMENT '수령 여부',
-    received_at         DATETIME   COMMENT '수령 완료 날짜',
-    PRIMARY KEY (user_index, mission_index)
-) COMMENT='캐릭터 미션 테이블';
 ```
 
 ## User_Summon_State Table

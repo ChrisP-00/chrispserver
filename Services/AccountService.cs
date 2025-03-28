@@ -30,7 +30,7 @@ public class AccountService : IAccount
         var db = _connectionManager.GetSqlQueryFactory(DbKeys.GameServerDB);
 
         UserAccount userAccount = await db.Query(TableNames.UserAccount)
-        .Where(DbColumns.MemberId, requestBody.member_id)
+        .Where(DbColumns.MemberId, requestBody.MemberId)
         .FirstOrDefaultAsync<UserAccount>();
 
         if (userAccount != null)
@@ -65,11 +65,11 @@ public class AccountService : IAccount
                 // 1. UserAccount 생성
                 int index = await db.Query(TableNames.UserAccount).InsertGetIdAsync<int>(new
                 {
-                    Member_id = requestBody.member_id,
-                    Unity_device_number = requestBody.unity_device_number,
-                    Nickname = string.IsNullOrWhiteSpace(requestBody.nickname)
+                    Member_id = requestBody.MemberId,
+                    Unity_device_number = requestBody.UnityDeviceNumber,
+                    Nickname = string.IsNullOrWhiteSpace(requestBody.Nickname)
                                     ? defaultNickname
-                                    : requestBody.nickname
+                                    : requestBody.Nickname
             }, transaction: transaction);
 
                 Console.WriteLine($"user index : {index} ");
@@ -133,7 +133,7 @@ public class AccountService : IAccount
         var db = _connectionManager.GetSqlQueryFactory(DbKeys.GameServerDB);
 
         UserAccount userAccount = await db.Query(TableNames.UserAccount)
-        .Where(DbColumns.MemberId, requestBody.member_id)
+        .Where(DbColumns.MemberId, requestBody.MemberId)
         .FirstOrDefaultAsync<UserAccount>();
 
         if (userAccount == null)

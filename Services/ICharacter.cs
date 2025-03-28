@@ -26,6 +26,4 @@ public interface ICharacter
     // 처리 후 결과 메세지, 실제 남은 수량
 
 
-
-
 }

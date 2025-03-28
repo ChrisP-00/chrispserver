@@ -28,5 +28,15 @@ public class Response
     {
         public int RemainQuantity { get; set; }
     }
+
+    public class Res_EquipCharacter
+    {
+        public int Level { get; set; }
+        public int Exp { get; set; }
+        public DateTime Equipped_at { get; set; } 
+
+         // 장착한 아이템에 대한 정보 전달
+         // public List<itemEquip> 
+    }
     #endregion
 }

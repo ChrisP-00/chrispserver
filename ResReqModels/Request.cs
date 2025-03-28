@@ -7,41 +7,51 @@ namespace chrispserver.ResReqModels;
 
 public class Request
 {
-    #region 계정 관련 모델
-    public class Req_UserAuth
+    public class Req_Base
     {
-        public int userIndex {  get; set; }
-        public int userToken { get; set; }
+        public int Userindex { get; set; }
     }
 
-                
+
+    #region 계정 관련 모델
+    public class Req_UserAuth : Req_Base
+    {
+        public int UserToken { get; set; }
+    }
+     
     public class Req_CreateAccount
     {
-        public string? member_id { get; set; }
-        public string? unity_device_number { get; set; }
-        public string? nickname { get; set; }
+        public string? MemberId { get; set; }
+        public string? UnityDeviceNumber { get; set; }
+        public string? Nickname { get; set; }
     }
 
     public class Req_Login
     {
-        public int member_id { get; set; }
-        public string? unity_device_number { get; set; }
+        public int MemberId { get; set; }
+        public string? UnityDeviceNumber { get; set; }
     }
     #endregion
 
+
     #region 캐릭터 관련 모델
-    public class Req_Feed
+    public class Req_Feed : Req_Base
     {
-        public int user_index { get; set; }
-        public int goods_index { get; set; }
-        public int quantity { get; set; }
+        public int GoodsIndex { get; set; }
+        public int Quantity { get; set; }
     }
 
-    public class Req_Play
+    public class Req_Play : Req_Base
     {
-        public int user_index { get; set; }
-        public int goods_index { get; set; }
-        public int quantity { get; set; }
+        public int GoodsIndex { get; set; }
+        public int Quantity { get; set; }
     }
+
+    public class Req_EquipCharacter : Req_Base
+    {
+        public int CharacterIndex { get; set; }
+    }
+
+
     #endregion
 }

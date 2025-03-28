@@ -20,9 +20,10 @@ public class UserEntities
         public int Character_Index { get; set; }
         public int Level { get; set; }
         public int Exp { get; set; }
-        public int Dirty_Level { get; set; }
-        public int Quantity { get; set; }
         public bool Is_Active { get; set; }
+        public bool is_acquired { get; set; }
+        public DateTime equipped_at { get; set; }
+        public DateTime acquired_at { get; set; }
     }
 
 
@@ -52,15 +53,7 @@ public class UserEntities
     {
         public int User_Index { get; set; }
         public int Mission_Index { get; set; }
-        public int Amount { get; set; }
-        public bool Is_Received { get; set; }
-    }
-
-    public class UserCharacterMission
-    {
-        public int User_Index { get; set; }
-        public int Mission_Index { get; set; }
-        public int Amount { get; set; }
+        public int Quantity { get; set; }
         public bool Is_Received { get; set; }
     }
 }

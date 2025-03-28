@@ -22,7 +22,7 @@ public class CharacterService : ICharacter
         // 요청한 재화가 먹이 타입인지 확인
         var masterDb = _connectionManager.GetSqlQueryFactory(DbKeys.MasterDataDB);
         Goods goods = await masterDb.Query(TableNames.Goods)
-                .Where(DbColumns.GoodsIndex, requestBody.goods_index)
+                .Where(DbColumns.GoodsIndex, requestBody.GoodsIndex)
                 .FirstOrDefaultAsync<Goods>();
 
         if ((Enums.GoodType)goods.Type != Enums.GoodType.Food)
@@ -34,8 +34,8 @@ public class CharacterService : ICharacter
         // 요청한 재화의 수량 확인
         var gameDb = _connectionManager.GetSqlQueryFactory(DbKeys.GameServerDB);
         UserGoods userGoods = await gameDb.Query(TableNames.UserGoods)
-                .Where(DbColumns.UserIndex, requestBody.user_index)
-                .Where(DbColumns.GoodsIndex, requestBody.goods_index)
+                .Where(DbColumns.UserIndex, requestBody.Userindex)
+                .Where(DbColumns.GoodsIndex, requestBody.GoodsIndex)
                 .FirstOrDefaultAsync<UserGoods>();
 
         if(userGoods == null)
@@ -44,17 +44,17 @@ public class CharacterService : ICharacter
             return Result<Res_Feed>.Fail(ResultCodes.Feed_Fail_NotEnough);
         }
 
-        int remainQuantity = userGoods.Quantity - requestBody.quantity;
+        int remainQuantity = userGoods.Quantity - requestBody.Quantity;
 
-        if(userGoods.Quantity < requestBody.quantity || remainQuantity < 0)
+        if(userGoods.Quantity < requestBody.Quantity || remainQuantity < 0)
         {
             Console.WriteLine("요청한 재화의 수량이 부족합니다.");
             return Result<Res_Feed>.Fail(ResultCodes.Feed_Fail_NotEnough);
         }
 
         await gameDb.Query(TableNames.UserGoods)
-                .Where(DbColumns.UserIndex, requestBody.user_index)
-                .Where(DbColumns.GoodsIndex, requestBody.goods_index)
+                .Where(DbColumns.UserIndex, requestBody.Userindex)
+                .Where(DbColumns.GoodsIndex, requestBody.GoodsIndex)
                 .UpdateAsync(new { quantity = remainQuantity });
 
         Res_Feed res_Feed = new Res_Feed
@@ -70,7 +70,7 @@ public class CharacterService : ICharacter
         // 요청한 재화가 장난감 타입인지 확인
         var masterDb = _connectionManager.GetSqlQueryFactory(DbKeys.MasterDataDB);
         Goods goods = await masterDb.Query(TableNames.Goods)
-                .Where(DbColumns.GoodsIndex, requestBody.goods_index)
+                .Where(DbColumns.GoodsIndex, requestBody.GoodsIndex)
                 .FirstOrDefaultAsync<Goods>();
 
         if ((Enums.GoodType)goods.Type != Enums.GoodType.Toy)
@@ -82,8 +82,8 @@ public class CharacterService : ICharacter
         // 요청한 재화의 수량 확인
         var gameDb = _connectionManager.GetSqlQueryFactory(DbKeys.GameServerDB);
         UserGoods userGoods = await gameDb.Query(TableNames.UserGoods)
-                .Where(DbColumns.UserIndex, requestBody.user_index)
-                .Where(DbColumns.GoodsIndex, requestBody.goods_index)
+                .Where(DbColumns.UserIndex, requestBody.Userindex)
+                .Where(DbColumns.GoodsIndex, requestBody.GoodsIndex)
                 .FirstOrDefaultAsync<UserGoods>();
 
         if (userGoods == null)
@@ -92,17 +92,17 @@ public class CharacterService : ICharacter
             return Result<Res_Play>.Fail(ResultCodes.Play_Fail_NotEnough);
         }
 
-        int remainQuantity = userGoods.Quantity - requestBody.quantity;
+        int remainQuantity = userGoods.Quantity - requestBody.Quantity;
 
-        if (userGoods.Quantity < requestBody.quantity || remainQuantity < 0)
+        if (userGoods.Quantity < requestBody.Quantity || remainQuantity < 0)
         {
             Console.WriteLine("요청한 재화의 수량이 부족합니다.");
             return Result<Res_Play>.Fail(ResultCodes.Play_Fail_NotEnough);
         }
 
         await gameDb.Query(TableNames.UserGoods)
-                .Where(DbColumns.UserIndex, requestBody.user_index)
-                .Where(DbColumns.GoodsIndex, requestBody.goods_index)
+                .Where(DbColumns.UserIndex, requestBody.Userindex)
+                .Where(DbColumns.GoodsIndex, requestBody.GoodsIndex)
                 .UpdateAsync(new { quantity = remainQuantity });
 
         Res_Play res_Feed = new Res_Play
