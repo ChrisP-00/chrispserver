@@ -114,7 +114,6 @@ public class AccountService : IAccount
 
                 // 4. 일일 미션 넣어주기
 
-                // 5. 캐릭터 미션 넣어주기
             });
 
             return result;
@@ -171,18 +170,13 @@ public class AccountService : IAccount
             .Where("user_index", userIndex)
             .GetAsync<UserDailyMission>();
 
-        var userCharacterMissions = await db.Query(TableNames.UserCharacterMission)
-            .Where("user_index", userIndex)
-            .GetAsync<UserCharacterMission>();
-
         var resultData = new Res_Login
         {
             UserAccount = userAccount,
             UserCharacters = userCharacters.ToList(),
             UserInventories = userInventories.ToList(),
             UserGoods = userGoods.ToList(),
-            UserDailyMission = userDailyMissions.ToList(),
-            UserCharacterMissions = userCharacterMissions.ToList()
+            UserDailyMission = userDailyMissions.ToList()
         };
 
         // 마지막 로그인 시간 변경 

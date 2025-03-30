@@ -48,25 +48,16 @@ public enum ResultCodes
     [Description("로그인 중 오류 발생")]
     Login_Fail_Exception = -2999,        
 
-    // 밥주기 오류 -3000 ~ -3999
-    [Description("사용자가 보유한 음식이 없음")]
-    Feed_Fail_NotEnough = -3001,             
-    [Description("먹이로 줄 수 없는 재화")]
-    Feed_Fail_NotFood = -3002,          
-    [Description("밥을 먹을 수 없는 상태")]
-    Feed_Fail_NotHungry = -3003,          
+    // 재화 사용 오류 -3000 ~ -3999
+    [Description("사용자가 보유한 재화가 없음")]
+    Goods_Fail_NotEnough = -3001,  
+    [Description("보유한 재화 수량이 부족함")]
+    Goods_Fail_NotExist = -3002,  
+    [Description("사용할 수 없는 재화")]
+    Goods_Fail_NotValidType = -3003,          
     [Description("밥주기 중 오류 발생")]
-    Feed_Fail_Exception = -3999,          
+    Goods_Fail_Exception = -3999,          
 
-    // 놀아주기 오류 -4000 ~ -4999
-    [Description("사용자가 보유한 장난감이 없음")]
-    Play_Fail_NotEnough = -4001,
-    [Description("장난감으로 사용할 수 없는 재화")]
-    Play_Fail_NotToy = -4002,
-    [Description("놀지 못하는 상태")]
-    Play_Fail_NotInMood = -4003,          
-    [Description("놀아주기 중 오류 발생")]
-    Play_Fail_Exception = -4999,         
 
     // 미션 오류 -5000 ~ -5999
     [Description("현재 미션을 수행 할 수 없음")]
@@ -86,21 +77,6 @@ public enum ResultCodes
     [Description("아이템 알 수 없는 오류")]
     Equip_Fail_Exception = -6999,         
 
-    // 뽑기 오류 -7000 ~ -7999
-    [Description("뽑기에 필요한 재화 부족")]
-    Gacha_Fail_NoCurrency = -7001,        
-    [Description("뽑기 횟수 부족")]
-    Gacha_Fail_NoAttempts = -7002,        
-    [Description("뽑기 알 수 없는 오류")]
-    Gacha_Fail_Exception = -7999,         
-
-    // 재화 오류 -8000 ~ -8999
-    [Description("필요한 재화가 부족함")]
-    Currency_Fail_NotEnough = -8001,      
-    [Description("유효하지 않은 거래")]
-    Currency_Fail_InValidTransaction = -8002,
-    [Description("재화 알 수 없는 오류")]
-    Currency_Fail_Exception = -8999,       
 
     // 공지 오류 -9000 ~ -9999
     [Description("요청한 공지가 없음")]

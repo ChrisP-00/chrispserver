@@ -13,7 +13,6 @@ public class Response
         public List<UserInventory>? UserInventories { get; set; }
         public List<UserGoods>? UserGoods { get; set; }
         public List<UserDailyMission>? UserDailyMission { get; set; }
-        public List<UserCharacterMission>? UserCharacterMissions { get; set; }
     }
     #endregion
 
