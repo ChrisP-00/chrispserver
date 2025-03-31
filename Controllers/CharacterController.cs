@@ -20,6 +20,27 @@ public class CharacterController : ControllerBase
     }
 
     /// <summary>
+    /// 캐릭터 장착
+    /// </summary>
+    [HttpPost("Equip-Character")]
+
+    public async Task<Result<Res_EquipCharacter>> EquipCharacterAsync([FromBody]Req_EquipCharacter request)
+    {
+        Console.WriteLine(">>>>>>>>>>>>>>>> [Equip-Character Request] " + JsonSerializer.Serialize(request));
+        return await _character.EquipCharacterAsync(request);
+    }
+
+    /// <summary>
+    /// 아이템 장착
+    /// </summary>
+    [HttpPost("Equip-Item")]
+    public async Task<Result> EquipItemrAsync([FromBody] Req_EquipItem request)
+    {
+        Console.WriteLine(">>>>>>>>>>>>>>>> [Equip-Item Request] " + JsonSerializer.Serialize(request));
+        return await _character.EquipItemAsync(request);
+    }
+
+    /// <summary>
     /// 밥주기 요청
     /// </summary>
     [HttpPost("Feed")]

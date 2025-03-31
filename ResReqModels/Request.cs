@@ -9,7 +9,7 @@ public class Request
 {
     public class Req_Base
     {
-        public int Userindex { get; set; }
+        public int UserIndex { get; set; }
     }
 
 
@@ -52,6 +52,10 @@ public class Request
         public int CharacterIndex { get; set; }
     }
 
+    public class Req_EquipItem : Req_EquipCharacter
+    {
+        public int EquipItemIndex { get; set; }
 
+    }
     #endregion
 }

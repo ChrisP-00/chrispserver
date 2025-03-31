@@ -65,17 +65,26 @@ public enum ResultCodes
     [Description("이미 수행한 미션")]
     Mission_Fail_AlreadyCompleted = -5002,
     [Description("미션 알 수 없는 오류")]
-    Mission_Fail_Exception = -5999,       
+    Mission_Fail_Exception = -5999,
 
     // 장착 오류 -6000 ~ -6999
+    // 캐릭터 장착 오류 -6100 ~ -6200
+    [Description("이미 장착된 캐릭터")]
+    Equip_Fail_CharacterAlreadyEquipped = -6101,
+    [Description("이미 장착된 캐릭터")]
+    Equip_Fail_NoCharacter = -6102,
+
+    // 아이템 장착 오류 -6200 ~ -6300
     [Description("장착할 아이템을 가지고 있지 않음")]
-    Equip_Fail_NoItem = -6001,            
+    Equip_Fail_NoItem = -6201,            
     [Description("이미 장착하고 있음")]
-    Equip_Fail_AlreadyEquiped = -6002,    
+    Equip_Fail_ItemAlreadyEquipped = -6202,    
     [Description("장착 할 수 없는 아이템")]
-    Equip_Fail_Incompatible = -6003,      
+    Equip_Fail_Incompatible = -6203,
+    [Description("존재 하지 않는 아이템")]
+    Equip_Fail_NotExist = -6291,
     [Description("아이템 알 수 없는 오류")]
-    Equip_Fail_Exception = -6999,         
+    Equip_Fail_Exception = -6299,         
 
 
     // 공지 오류 -9000 ~ -9999

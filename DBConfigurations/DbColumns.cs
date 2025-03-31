@@ -56,6 +56,9 @@ public static class DbColumns
     #region 캐릭터 테이블 컬럼
     /// <summary> 캐릭터 인덱스 </summary>
     public const string CharacterIndex = "character_index";
+
+    /// <summary> 캐릭터 인덱스 </summary>
+    public const string IsActive = "is_active";
     #endregion
 
     #region 아이템 테이블 컬럼

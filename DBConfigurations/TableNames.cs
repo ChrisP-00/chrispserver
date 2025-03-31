@@ -16,15 +16,15 @@ public static class TableNames
 
     public static readonly string UserInventory = "user_inventory";
 
-    public static readonly string UserDailyMission = "user_daily_mission";
+    public static readonly string UserEquip = "user_equip";
 
-    public static readonly string UserCharacterMission = "user_character_mission";
+    public static readonly string UserDailyMission = "user_daily_mission";
 
 
     // master db
     public static readonly string InfoCharacter = "character";
 
-    public static readonly string Goods = "goods";
+    public static readonly string InfoGoods = "goods";
 
     public static readonly string InfoItem = "item";
 
