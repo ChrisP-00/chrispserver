@@ -41,6 +41,17 @@ public class CharacterController : ControllerBase
     }
 
     /// <summary>
+    /// 아이템 장착
+    /// </summary>
+    [HttpPost("Unequip-Item")]
+    public async Task<Result> UnequipItemByTypeAsnyc([FromBody] Req_EquipItem request)
+    {
+        Console.WriteLine(">>>>>>>>>>>>>>>> [Unequip-Item Request] " + JsonSerializer.Serialize(request));
+
+        return await _character.UnequipItemAsnyc(request);
+    }
+
+    /// <summary>
     /// 밥주기 요청
     /// </summary>
     [HttpPost("Feed")]

@@ -54,7 +54,7 @@ public class Request
 
     public class Req_EquipItem : Req_EquipCharacter
     {
-        public int EquipItemIndex { get; set; }
+        public int RequestedItemIndex { get; set; }
 
     }
     #endregion

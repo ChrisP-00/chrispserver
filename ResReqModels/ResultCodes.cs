@@ -80,7 +80,9 @@ public enum ResultCodes
     [Description("이미 장착하고 있음")]
     Equip_Fail_ItemAlreadyEquipped = -6202,    
     [Description("장착 할 수 없는 아이템")]
-    Equip_Fail_Incompatible = -6203,
+    Equip_Fail_NoEquippedItem = -6203,
+    [Description("장착 할 수 없는 아이템")]
+    Equip_Fail_Incompatible = -6204,
     [Description("존재 하지 않는 아이템")]
     Equip_Fail_NotExist = -6291,
     [Description("아이템 알 수 없는 오류")]

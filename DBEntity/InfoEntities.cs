@@ -26,8 +26,8 @@ public class InfoEntities
     public class Item
     {
         public int Item_Index { get; set; }
-        public string? Item_Name { get; set; }
-        public byte Item_Type { get; set; }
+        public string? Name { get; set; }
+        public byte Type { get; set; }
         public int Required_Level { get; set; }
         public int Equip_Character_Index { get; set; }
     }
