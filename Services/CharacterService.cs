@@ -103,8 +103,10 @@ public class CharacterService : ICharacter
 
     public async Task<Result> EquipItemAsync(Req_EquipItem requestBody)
     {
-        // 요청한 아이템 보유 확인
         var gameDb = _connectionManager.GetSqlQueryFactory(DbKeys.GameServerDB);
+        var masterDb = _connectionManager.GetSqlQueryFactory(DbKeys.MasterDataDB);
+
+        // 요청한 아이템 보유 확인
         UserEquip hasItem = await gameDb.Query(TableNames.UserInventory)
                 .Where(DbColumns.UserIndex, requestBody.UserIndex)
                 .Where(DbColumns.ItemIndex, requestBody.EquipItemIndex)
@@ -128,7 +130,7 @@ public class CharacterService : ICharacter
             return Result.Fail(ResultCodes.Equip_Fail_NoCharacter);
         }
 
-        var masterDb = _connectionManager.GetSqlQueryFactory(DbKeys.MasterDataDB);
+        
         Item itemInfo = await masterDb.Query(TableNames.InfoItem)
                 .Where(DbColumns.ItemIndex, requestBody.EquipItemIndex)
                 .FirstOrDefaultAsync<Item>();
@@ -145,31 +147,41 @@ public class CharacterService : ICharacter
             return Result.Fail(ResultCodes.Equip_Fail_Incompatible);
         }
 
+        // gameDb에서 조건에 맞는 item_index 리스트 조회
+        var equippedItemIndexes = await gameDb.Query(TableNames.UserEquip)
+            .Where(DbColumns.UserIndex, requestBody.UserIndex)
+            .Where(DbColumns.CharacterIndex, activatedCharacter.Character_Index)
+            .Where(DbColumns.IsEquipped, true)
+            .WhereNot(DbColumns.ItemIndex, requestBody.EquipItemIndex)
+            .Select(DbColumns.ItemIndex).GetAsync<int>();
 
-        // 중복으로 활성화 되어있는 아이템 확인
-        var otherEquippedItems = await gameDb.Query($"{TableNames.UserEquip} AS ue")
-                .Join($"{TableNames.InfoItem} AS i", "ue.item_index", "i.item_index")
-                .Where("ue.user_index", requestBody.UserIndex)
-                .Where("ue.character_index", activatedCharacter.Character_Index)
-                .Where("ue.is_equipped", true)
-                .Where("i.type", itemInfo.Item_Type)
-                .Where("ue.item_index", "!=", requestBody.EquipItemIndex)
-                .GetAsync();
+        // masterDb에서 같은 item_type인 아이템 필터링
+        var sameTypeItemIndexes = await masterDb.Query(TableNames.InfoItem)
+            .Where(DbColumns.Type, itemInfo.Item_Type)
+            .WhereIn(DbColumns.ItemIndex, equippedItemIndexes)
+            .Select(DbColumns.ItemIndex).GetAsync<int>();
 
-        foreach (var equipped in otherEquippedItems)
+        // gameDb에서 해당 item_index만 Update
+        foreach (var equippedIndex in sameTypeItemIndexes)
         {
             await gameDb.Query(TableNames.UserEquip)
                 .Where(DbColumns.UserIndex, requestBody.UserIndex)
                 .Where(DbColumns.CharacterIndex, activatedCharacter.Character_Index)
-                .Where(DbColumns.ItemIndex, equipped.item_index)
+                .Where(DbColumns.ItemIndex, equippedIndex)
                 .UpdateAsync(new { is_equipped = false });
         }
 
-        var newEquipItem = await gameDb.Query(TableNames.UserEquip)
+        UserEquip newEquipItem = await gameDb.Query(TableNames.UserEquip)
                 .Where(DbColumns.UserIndex, requestBody.UserIndex)
                 .Where(DbColumns.CharacterIndex, activatedCharacter.Character_Index)
                 .Where(DbColumns.ItemIndex, requestBody.EquipItemIndex)
-                .FirstOrDefaultAsync();
+                .FirstOrDefaultAsync<UserEquip>();
+
+        if(newEquipItem != null && newEquipItem.Is_Equipped)
+        {
+            Console.WriteLine("이미 장착한 아이템 입니다.");
+            return Result.Fail(ResultCodes.Equip_Fail_ItemAlreadyEquipped);
+        }
 
         if (newEquipItem == null)
         {

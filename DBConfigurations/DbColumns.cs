@@ -62,7 +62,10 @@ public static class DbColumns
     #endregion
 
     #region 아이템 테이블 컬럼
-    /// <summary> 캐릭터 인덱스 </summary>
+    /// <summary> 아이템 인덱스 </summary>
     public const string ItemIndex = "item_index";
+
+    /// <summary> 아이템 장착 </summary>
+    public const string IsEquipped = "is_equipped";
     #endregion
 }
