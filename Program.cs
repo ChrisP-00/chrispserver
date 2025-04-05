@@ -5,23 +5,20 @@ var builder = WebApplication.CreateBuilder(args);
 
 // 의존성 주입
 builder.Services.AddSingleton<ConnectionManager>();
-
-
 builder.Services.AddSingleton<IMaster, MasterDBService>();
+builder.Services.AddSingleton<IMasterHandler, MasterHandler>();
 builder.Services.AddTransient<IAccount, AccountService>();
 builder.Services.AddTransient<ICharacter, CharacterService>();
-
+builder.Services.AddTransient<IMission, MissionService>();
 
 // Add services to the container.
 builder.Services.AddRazorPages();
 
-
 var app = builder.Build();
 
 // 마스터 DB 로딩
-var masterService = app.Services.GetRequiredService<IMaster>();
-await masterService.LoadAllAsync();
-
+var masterHandler = app.Services.GetRequiredService<IMasterHandler>();
+await masterHandler.LoadAllAsync();
 
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())

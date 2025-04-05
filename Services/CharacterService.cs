@@ -1,152 +1,174 @@
 ﻿using chrispserver.DbConfigurations;
-using chrispserver.Handlers;
 using chrispserver.ResReqModels;
-using static chrispserver.ResReqModels.Request;
-using static chrispserver.ResReqModels.Response;
+using SqlKata.Execution;
+using System.Transactions;
+using System;
 using static chrispserver.DbEntity.InfoEntities;
 using static chrispserver.DbEntity.UserEntities;
-using SqlKata.Execution;
-using Microsoft.AspNetCore.Razor.TagHelpers;
+using static chrispserver.ResReqModels.Request;
+using static StackExchange.Redis.Role;
+using System.Reflection;
+
 
 namespace chrispserver.Services;
 
 public class CharacterService : ICharacter
 {
     private readonly ConnectionManager _connectionManager;
-    private readonly FeedHandler _feedHandler = new();
-    private readonly PlayHandler _playHandler = new();
 
     private QueryFactory _gameDb => _connectionManager.GetSqlQueryFactory(DbKeys.GameServerDB);
-    private QueryFactory _masterDb => _connectionManager.GetSqlQueryFactory(DbKeys.MasterDataDB);
-
 
     public CharacterService(ConnectionManager connectionManager)
     {
         _connectionManager = connectionManager;
     }
 
-    private async Task<UserCharacter?> GetActivatedCharacter(int userIndex)
-    {
-        var gameDb = _gameDb;
-        return await gameDb.Query(TableNames.UserCharacter)
-                .Where(DbColumns.UserIndex, userIndex)
-                .Where(DbColumns.IsActive, true)
-                .FirstOrDefaultAsync<UserCharacter>();
-    }
+    #region 캐릭터, 아이템 장탈착 기능
 
-    private async Task<Result> DeactivateOtherCharacters(int userIndex, int exceptCharacterIndex)
+
+    public async Task<Result> EquipCharacterAsync(Req_EquipCharacter requestBody)
     {
         var gameDb = _gameDb;
 
         try
         {
-            // 현재 활성화 되어있는 캐릭터 확인
-            var otherActiveCharacters = await gameDb.Query(TableNames.UserCharacter)
-                    .Where(DbColumns.UserIndex, userIndex)
-                    .Where(DbColumns.IsActive, true)
-                    .WhereNot(DbColumns.CharacterIndex, exceptCharacterIndex)
-                    .GetAsync<UserCharacter>();
+            UserCharacter currentCharacter = await gameDb.Query(TableNames.UserCharacter)
+               .Where(DbColumns.UserIndex, requestBody.UserIndex)
+               .Where(DbColumns.CharacterIndex, requestBody.EquipCharacterIndex)
+               .FirstOrDefaultAsync<UserCharacter>();
 
-            // 장착 요청 캐릭터 외 다른 캐릭터 비활성화
-            foreach (var character in otherActiveCharacters)
+            if (currentCharacter != null && currentCharacter.Is_Active)
             {
-                Console.WriteLine($"비활성화 {character.Character_Index}");
-
-                await gameDb.Query(TableNames.UserCharacter)
-                    .Where(DbColumns.UserIndex, userIndex)
-                    .Where(DbColumns.CharacterIndex, character.Character_Index)
-                    .UpdateAsync(new
-                    {
-                        Is_Active = false,
-                        Level = character.is_acquired ? character.Level : 0,
-                        Exp = character.is_acquired ? character.Exp : 0
-                    });
+                Console.WriteLine($"{currentCharacter.Character_Index}는 이미 활성화된 캐릭터 ");
+                return Result.Fail(ResultCodes.Equip_Fail_CharacterAlreadyEquipped);
             }
+
+            // 요청한 캐릭터를 처음 장착할 경우
+            if (currentCharacter == null)
+            {
+                UserCharacter newCharacter = new UserCharacter
+                {
+                    User_Index = requestBody.UserIndex,
+                    Character_Index = requestBody.EquipCharacterIndex
+                };
+
+                await gameDb.Query(TableNames.UserCharacter).InsertAsync(newCharacter);
+
+                currentCharacter = newCharacter;
+            }
+
+            int resetLevel = 5; // define에서 가져오기
+            int defaultLevel = 0;
+            int defaultEXP = 0;
+
+            int AllActivatedCharacters = await gameDb.Query(TableNames.UserCharacter)
+                       .Where(DbColumns.UserIndex, requestBody.UserIndex)
+                       .Where(DbColumns.IsActive, true)
+                       .CountAsync<int>();
+
+            // 다른 활성화된 캐릭터가 있음
+            if (AllActivatedCharacters > 1)
+            {
+                Console.WriteLine("현재 1개 초과의 캐릭터가 활성화 되어있습니다.");
+            }
+
+            UserCharacter currentActivatedCharacter = await gameDb.Query(TableNames.UserCharacter)
+                     .Where(DbColumns.UserIndex, requestBody.UserIndex)
+                     .Where(DbColumns.IsActive, true)
+                     .FirstOrDefaultAsync<UserCharacter>();
+
+            // 기존에 활성화 되어있는 캐릭터 레벨 확인 및 초기화
+            if (currentActivatedCharacter.Level >= resetLevel)
+            {
+                var otherActiveCharacters = await gameDb.Query(TableNames.UserCharacter)
+                        .Where(DbColumns.UserIndex, requestBody.UserIndex)
+                        .Where(DbColumns.IsActive, true)
+                        .UpdateAsync(new
+                        {
+                            Is_Active = false
+                        });
+            }
+            else
+            {
+                var otherActiveCharacters = await gameDb.Query(TableNames.UserCharacter)
+                        .Where(DbColumns.UserIndex, requestBody.UserIndex)
+                        .Where(DbColumns.IsActive, true)
+                        .UpdateAsync(new
+                        {
+                            Is_Active = false,
+                            Level = defaultLevel,
+                            EXP = defaultEXP,
+                        });
+            }
+
+            var today = DateTime.Now;
+            await gameDb.Query(TableNames.UserCharacter)
+                .Where(DbColumns.UserIndex, requestBody.UserIndex)
+                .Where(DbColumns.CharacterIndex, requestBody.EquipCharacterIndex)
+                .UpdateAsync(new
+                {
+                    Is_Active = true,
+                    Equipped_At = today
+                });
+
+            // 현재 장착한 캐릭터 아이템 정보 전달
+            // UserEquip 테이블 전달 
 
             return Result.Success();
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"{ex.ToString()} : 다른 캐릭터 비활성화 중 오류 발생");
+            Console.WriteLine($"아이템 장탈 오류 발생 {ex.ToString()}");
             return Result.Fail(ResultCodes.Equip_Fail_Exception);
         }
-
     }
 
-    public async Task<Result<Res_EquipCharacter>> EquipCharacterAsync(Req_EquipCharacter requestBody)
+    public async Task<Result> EquipItemAsync(Req_EquipItem requestBody, InfoItem infoItem)
     {
         var gameDb = _gameDb;
 
-        try
+        // 현재 장착 캐릭터 확인
+        UserCharacter lastActivatedCharacter = await gameDb.Query(TableNames.UserCharacter)
+                .Where(DbColumns.UserIndex, requestBody.UserIndex)
+                .Where(DbColumns.IsActive, true)
+                .FirstOrDefaultAsync<UserCharacter>();
+
+        // 현재 장착 캐릭터가 없는 경우 처리
+        if (lastActivatedCharacter == null)
         {
-            UserCharacter requestedCharacter = await gameDb.Query(TableNames.UserCharacter)
-               .Where(DbColumns.UserIndex, requestBody.UserIndex)
-               .Where(DbColumns.CharacterIndex, requestBody.CharacterIndex)
-               .FirstOrDefaultAsync<UserCharacter>();
+            // 로그 찍기
+            Console.WriteLine("현재 활성화된 캐릭터가 없습니다.");
 
-            // 요청한 캐릭터를 처음 장착할 경우
-            if (requestedCharacter == null)
-            {
-                UserCharacter newCharacter = new UserCharacter
-                {
-                    User_Index = requestBody.UserIndex,
-                    Character_Index = requestBody.CharacterIndex
-                };
-
-                await gameDb.Query(TableNames.UserCharacter).InsertAsync(newCharacter);
-
-                requestedCharacter = newCharacter;
-            }
-
-            var deactiveResult = await DeactivateOtherCharacters(requestBody.UserIndex, requestBody.CharacterIndex);
-
-            if (deactiveResult.ResultCodes != ResultCodes.Ok)
-            {
-                return Result<Res_EquipCharacter>.Fail(deactiveResult.ResultCodes);
-            }
-
-
-            var today = DateTime.Now;
-
-            if (!requestedCharacter.Is_Active)
-            {
-                await gameDb.Query(TableNames.UserCharacter)
+            // 마지막에 장착한 캐릭터
+            lastActivatedCharacter = await gameDb.Query(TableNames.UserCharacter)
                     .Where(DbColumns.UserIndex, requestBody.UserIndex)
-                    .Where(DbColumns.CharacterIndex, requestBody.CharacterIndex)
+                    .OrderByDesc(DbColumns.EquippedAt)
+                    .FirstOrDefaultAsync<UserCharacter>();
+
+            await gameDb.Query(TableNames.UserCharacter)
+                    .Where(DbColumns.UserIndex, requestBody.UserIndex)
+                    .Where(DbColumns.CharacterIndex, lastActivatedCharacter.Character_Index)
                     .UpdateAsync(new
                     {
-                        Is_Active = true,
-                        Equipped_at = today
+                        is_Equipped = true,
+                        equipped_At = DateTime.Now
                     });
-            }
-            else
-            {
-                Console.WriteLine($"{requestedCharacter.Character_Index}는 이미 활성화된 캐릭터 ");
-                return Result<Res_EquipCharacter>.Fail(ResultCodes.Equip_Fail_CharacterAlreadyEquipped);
-            }
 
-            return Result<Res_EquipCharacter>.Success(new Res_EquipCharacter
-            {
-                Level = requestedCharacter.Level,
-                Exp = requestedCharacter.Exp,
-                Equipped_at = today
-            });
+            Console.WriteLine($"{lastActivatedCharacter.Character_Index}으로 활성화 했습니다.");
         }
-        catch (Exception ex)
+
+
+
+        if (infoItem.Equip_Character_Index != lastActivatedCharacter.Character_Index)
         {
-            Console.WriteLine($"아이템 장탈 오류 발생 {ex.ToString()}");
-            return Result<Res_EquipCharacter>.Fail(ResultCodes.Equip_Fail_Exception);
+            Console.WriteLine("현재 캐릭터에 장착할 수 없는 아이템 입니다.");
+            return Result.Fail(ResultCodes.Equip_Fail_Incompatible);
         }
-    }
-    public async Task<Result> EquipItemAsync(Req_EquipItem requestBody)
-    {
-        var gameDb = _gameDb;
-        var masterDb = _masterDb;
 
         // 요청한 아이템 보유 확인
         UserEquip hasItem = await gameDb.Query(TableNames.UserInventory)
                 .Where(DbColumns.UserIndex, requestBody.UserIndex)
-                .Where(DbColumns.ItemIndex, requestBody.RequestedItemIndex)
+                .Where(DbColumns.ItemIndex, requestBody.EquipItemIndex)
                 .FirstOrDefaultAsync<UserEquip>();
 
         if (hasItem == null)
@@ -155,93 +177,40 @@ public class CharacterService : ICharacter
             return Result.Fail(ResultCodes.Equip_Fail_NoItem);
         }
 
-        // 현재 장착 캐릭터
-        UserCharacter activatedCharacter = await gameDb.Query(TableNames.UserCharacter)
-                .Where(DbColumns.UserIndex, requestBody.UserIndex)
-                .Where(DbColumns.IsActive, true)
-                .FirstOrDefaultAsync<UserCharacter>();
-
-        if (activatedCharacter == null)
-        {
-            Console.WriteLine("현재 활성화된 캐릭터가 없습니다.");
-            return Result.Fail(ResultCodes.Equip_Fail_NoCharacter);
-        }
-
-
-        Item itemInfo = await masterDb.Query(TableNames.InfoItem)
-                .Where(DbColumns.ItemIndex, requestBody.RequestedItemIndex)
-                .FirstOrDefaultAsync<Item>();
-
-        if (itemInfo == null)
-        {
-            Console.WriteLine("아이템 정보가 없습니다");
-            return Result.Fail(ResultCodes.Equip_Fail_NotExist);
-        }
-
-        if (itemInfo.Equip_Character_Index != activatedCharacter.Character_Index)
-        {
-            Console.WriteLine("현재 캐릭터에 장착할 수 없는 아이템 입니다.");
-            return Result.Fail(ResultCodes.Equip_Fail_Incompatible);
-        }
-
-        // gameDb에서 캐릭터가 장착한 아이템들 확인
-        var equippedItemIndexes = await gameDb.Query(TableNames.UserEquip)
-            .Where(DbColumns.UserIndex, requestBody.UserIndex)
-            .Where(DbColumns.CharacterIndex, activatedCharacter.Character_Index)
-            .Where(DbColumns.IsEquipped, true)
-            .WhereNot(DbColumns.ItemIndex, requestBody.RequestedItemIndex)
-            .Select(DbColumns.ItemIndex).GetAsync<int>();
-
-        // masterDb에서 같은 item_type인 아이템 필터링
-        var sameTypeItemIndexes = await masterDb.Query(TableNames.InfoItem)
-            .Where(DbColumns.Type, itemInfo.Type)
-            .WhereIn(DbColumns.ItemIndex, equippedItemIndexes)
-            .Select(DbColumns.ItemIndex).GetAsync<int>();
-
-        // gameDb에서 해당 item_index만 Update
-        foreach (var equippedIndex in sameTypeItemIndexes)
-        {
-            await gameDb.Query(TableNames.UserEquip)
-                .Where(DbColumns.UserIndex, requestBody.UserIndex)
-                .Where(DbColumns.CharacterIndex, activatedCharacter.Character_Index)
-                .Where(DbColumns.ItemIndex, equippedIndex)
-                .UpdateAsync(new { is_equipped = false });
-        }
-
+        // 현재 장착한 아이템 정보 확인 
         UserEquip newEquipItem = await gameDb.Query(TableNames.UserEquip)
                 .Where(DbColumns.UserIndex, requestBody.UserIndex)
-                .Where(DbColumns.CharacterIndex, activatedCharacter.Character_Index)
-                .Where(DbColumns.ItemIndex, requestBody.RequestedItemIndex)
+                .Where(DbColumns.CharacterIndex, lastActivatedCharacter.Character_Index)
+                .Where(DbColumns.ItemIndex, requestBody.EquipItemIndex)
                 .FirstOrDefaultAsync<UserEquip>();
 
-        if (newEquipItem != null && newEquipItem.Is_Equipped)
+        if (newEquipItem != null)
         {
             Console.WriteLine("이미 장착한 아이템 입니다.");
             return Result.Fail(ResultCodes.Equip_Fail_ItemAlreadyEquipped);
         }
 
-        if (newEquipItem == null)
+        // 아이템 장탈
+        await gameDb.Query(TableNames.UserEquip)
+            .Where(DbColumns.CharacterIndex, lastActivatedCharacter.Character_Index)
+            .Where(DbColumns.ItemType, infoItem.Item_Type)
+            .WhereNot(DbColumns.ItemIndex, requestBody.EquipItemIndex)
+            .DeleteAsync();
+
+        Console.WriteLine("현재 활성화된 아이템 제거");
+
+        // 로그에 추가
+
+        await gameDb.Query(TableNames.UserEquip).InsertAsync(new
         {
-            await gameDb.Query(TableNames.UserEquip).InsertAsync(new
-            {
-                user_index = requestBody.UserIndex,
-                character_index = activatedCharacter.Character_Index,
-                item_index = requestBody.RequestedItemIndex,
-                is_equipped = true
-            });
-        }
-        else
-        {
-            await gameDb.Query(TableNames.UserEquip)
-                .Where(DbColumns.UserIndex, requestBody.UserIndex)
-                .Where(DbColumns.CharacterIndex, activatedCharacter.Character_Index)
-                .Where(DbColumns.ItemIndex, requestBody.RequestedItemIndex)
-                .UpdateAsync(new { is_equipped = true });
-        }
+            user_index = requestBody.UserIndex,
+            character_index = lastActivatedCharacter.Character_Index,
+            item_type = infoItem.Item_Type,
+            item_index = requestBody.EquipItemIndex,
+        });
 
         return Result.Success();
     }
-
 
     public async Task<Result> UnequipItemAsnyc(Req_EquipItem requestBody)
     {
@@ -249,10 +218,65 @@ public class CharacterService : ICharacter
 
         try
         {
-            var unequipItem = await gameDb.Query(TableNames.UserEquip)
+            // 현재 장착 캐릭터 확인
+            UserCharacter lastActivatedCharacter = await gameDb.Query(TableNames.UserCharacter)
                     .Where(DbColumns.UserIndex, requestBody.UserIndex)
-                    .Where(DbColumns.ItemIndex, requestBody.RequestedItemIndex)
-                    .UpdateAsync(new { is_equipped = false });
+                    .Where(DbColumns.IsActive, true)
+                    .FirstOrDefaultAsync<UserCharacter>();
+
+            // 현재 장착 캐릭터가 없는 경우 처리
+            if (lastActivatedCharacter == null)
+            {
+                // 로그 찍기
+                Console.WriteLine("현재 활성화된 캐릭터가 없습니다.");
+
+                // 마지막에 장착한 캐릭터
+                lastActivatedCharacter = await gameDb.Query(TableNames.UserCharacter)
+                        .Where(DbColumns.UserIndex, requestBody.UserIndex)
+                        .OrderByDesc(DbColumns.EquippedAt)
+                        .FirstOrDefaultAsync<UserCharacter>();
+
+                await gameDb.Query(TableNames.UserCharacter)
+                        .Where(DbColumns.UserIndex, requestBody.UserIndex)
+                        .Where(DbColumns.CharacterIndex, lastActivatedCharacter.Character_Index)
+                        .UpdateAsync(new
+                        {
+                            is_Equipped = true,
+                            equipped_At = DateTime.Now
+                        });
+
+                Console.WriteLine($"{lastActivatedCharacter.Character_Index}으로 활성화 했습니다.");
+            }
+
+            // 요청한 아이템 보유 확인
+            UserEquip hasItem = await gameDb.Query(TableNames.UserInventory)
+                    .Where(DbColumns.UserIndex, requestBody.UserIndex)
+                    .Where(DbColumns.ItemIndex, requestBody.EquipItemIndex)
+                    .FirstOrDefaultAsync<UserEquip>();
+
+            if (hasItem == null)
+            {
+                Console.WriteLine("요청한 아이템이 없습니다.");
+                return Result.Fail(ResultCodes.Equip_Fail_NoItem);
+            }
+
+            // 요청한 아이템을 장착 중인지
+            int countEquipItem = await gameDb.Query(TableNames.UserEquip)
+                    .Where(DbColumns.UserIndex, requestBody.UserIndex)
+                    .Where(DbColumns.CharacterIndex, lastActivatedCharacter.Character_Index)
+                    .Where(DbColumns.ItemIndex, requestBody.EquipItemIndex)
+                    .CountAsync<int>();
+
+            if (countEquipItem == 0)
+            {
+                Console.WriteLine("현재 장착하지 않은 아이템입니다.");
+                return Result.Fail(ResultCodes.Equip_Fail_NoEquippedItem);
+            }
+
+            await gameDb.Query(TableNames.UserEquip)
+                    .Where(DbColumns.UserIndex, requestBody.UserIndex)
+                    .Where(DbColumns.ItemIndex, requestBody.EquipItemIndex)
+                    .DeleteAsync();
 
             return Result.Success();
         }
@@ -262,56 +286,40 @@ public class CharacterService : ICharacter
             return Result.Fail(ResultCodes.Equip_Fail_Exception);
         }
     }
+    #endregion
 
+    #region 유저 재화 소비 관련 기능
 
-
-    public Task<Result<Res_Feed>> FeedAsync(Req_Feed requestBody)
-        => UseGoodsAsync(requestBody.UserIndex, requestBody.GoodsIndex, requestBody.Quantity, _feedHandler);
-
-    public Task<Result<Res_Play>> PlayAsync(Req_Play requestBody)
-        => UseGoodsAsync(requestBody.UserIndex, requestBody.GoodsIndex, requestBody.Quantity, _playHandler);
-
-    private async Task<Result<T>> UseGoodsAsync<T>(int userIndex, int goodsIndex, int quantity, IGoodsHandler<T> handler)
-        where T : class, new()
+    public async Task<Result> UseGoodsAsync(Req_UseGoods requestBody)
     {
-        // 요청한 goodsIndex가 먹이 타입인지 확인
-        var masterDb = _masterDb;
-        Goods goods = await masterDb.Query(TableNames.InfoGoods)
-                .Where(DbColumns.GoodsIndex, goodsIndex)
-                .FirstOrDefaultAsync<Goods>();
-
-        if (goods == null || (Enums.GoodType)goods.Type != handler.RequiredGoodType)
-        {
-            Console.WriteLine("잘못된 재화 타입 입니다.");
-            return Result<T>.Fail(ResultCodes.Goods_Fail_NotValidType);
-        }
+        var gameDb = _gameDb;
 
         // 요청한 재화의 수량 확인
-        var gameDb = _gameDb;
         UserGoods userGoods = await gameDb.Query(TableNames.UserGoods)
-                .Where(DbColumns.UserIndex, userIndex)
-                .Where(DbColumns.GoodsIndex, goodsIndex)
+                .Where(DbColumns.UserIndex, requestBody.UserIndex)
+                .Where(DbColumns.GoodsIndex, requestBody.GoodsIndex)
                 .FirstOrDefaultAsync<UserGoods>();
 
         if (userGoods == null)
         {
-            Console.WriteLine("요청한 재화를 찾을 수 없습니다.");
-            return Result<T>.Fail(ResultCodes.Goods_Fail_NotExist);
+            Console.WriteLine("데이터를 찾을 수 없습니다.");
+            return Result.Fail(ResultCodes.Goods_Fail_NotExist);
         }
 
-        if (userGoods.Quantity < quantity)
+        if (userGoods.Quantity < requestBody.Quantity)
         {
             Console.WriteLine("요청한 재화의 수량이 부족합니다.");
-            return Result<T>.Fail(ResultCodes.Goods_Fail_NotEnough);
+            return Result.Fail(ResultCodes.Goods_Fail_NotEnough);
         }
 
-        int remainQuantity = userGoods.Quantity - quantity;
+        int remainQuantity = userGoods.Quantity - requestBody.Quantity;
 
         await gameDb.Query(TableNames.UserGoods)
-                .Where(DbColumns.UserIndex, userIndex)
-                .Where(DbColumns.GoodsIndex, goodsIndex)
+                .Where(DbColumns.UserIndex, requestBody.UserIndex)
+                .Where(DbColumns.GoodsIndex, requestBody.GoodsIndex)
                 .UpdateAsync(new { quantity = remainQuantity });
 
-        return Result<T>.Success(handler.CreateResponse(remainQuantity));
+        return Result.Success();
     }
+    #endregion
 }

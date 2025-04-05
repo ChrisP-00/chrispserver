@@ -1,10 +1,9 @@
 ﻿using chrispserver.ResReqModels;
 using chrispserver.Services;
 using Microsoft.AspNetCore.Mvc;
-using System.Security.Principal;
 using System.Text.Json;
+using static chrispserver.DbEntity.InfoEntities;
 using static chrispserver.ResReqModels.Request;
-using static chrispserver.ResReqModels.Response;
 
 namespace chrispserver.Controllers;
 
@@ -13,61 +12,94 @@ namespace chrispserver.Controllers;
 public class CharacterController : ControllerBase
 {
     private readonly ICharacter _character;
+    private readonly IMission _mission;
+    private readonly IMasterHandler _masterHandler;
 
-    public CharacterController(ICharacter character)
+    public CharacterController(ICharacter character, IMission mission, IMasterHandler masterHandler)
     {
         _character = character;
+        _mission = mission;
+        _masterHandler = masterHandler;
     }
 
     /// <summary>
     /// 캐릭터 장착
     /// </summary>
     [HttpPost("Equip-Character")]
-
-    public async Task<Result<Res_EquipCharacter>> EquipCharacterAsync([FromBody]Req_EquipCharacter request)
+    public async Task<Result> EquipCharacterAsync([FromBody]Req_EquipCharacter requestBody)
     {
-        Console.WriteLine(">>>>>>>>>>>>>>>> [Equip-Character Request] " + JsonSerializer.Serialize(request));
-        return await _character.EquipCharacterAsync(request);
+        if(_masterHandler.IsValid<InfoCharacter>(requestBody.EquipCharacterIndex))
+        {
+            Console.WriteLine($"Db에 존재하지 않는 캐릭터 인덱스 : {requestBody.EquipCharacterIndex}");
+            Result.Fail(ResultCodes.Equip_Fail_CharacterNotExist);
+        }
+        
+        Console.WriteLine(">>>>>>>>>>>>>>>> [Equip-Character Request] " + JsonSerializer.Serialize(requestBody));
+        return await _character.EquipCharacterAsync(requestBody);
     }
 
     /// <summary>
     /// 아이템 장착
     /// </summary>
     [HttpPost("Equip-Item")]
-    public async Task<Result> EquipItemrAsync([FromBody] Req_EquipItem request)
+    public async Task<Result> EquipItemrAsync([FromBody] Req_EquipItem requestBody)
     {
-        Console.WriteLine(">>>>>>>>>>>>>>>> [Equip-Item Request] " + JsonSerializer.Serialize(request));
-        return await _character.EquipItemAsync(request);
+        InfoItem infoItem = _masterHandler.GetInfoDataByIndex<InfoItem>(requestBody.EquipItemIndex);
+       
+        if (infoItem == null)
+        {
+            Console.WriteLine($"Db에 존재하지 않는 아이템 인덱스 : {requestBody.EquipItemIndex}");
+            return Result.Fail(ResultCodes.Equip_Fail_NotExist);
+        }
+
+        Console.WriteLine(">>>>>>>>>>>>>>>> [Equip-Item Request] " + JsonSerializer.Serialize(requestBody));
+        return await _character.EquipItemAsync(requestBody, infoItem);
     }
 
     /// <summary>
-    /// 아이템 장착
+    /// 아이템 장탈
     /// </summary>
     [HttpPost("Unequip-Item")]
-    public async Task<Result> UnequipItemByTypeAsnyc([FromBody] Req_EquipItem request)
+    public async Task<Result> UnequipItemByTypeAsnyc([FromBody] Req_EquipItem requestBody)
     {
-        Console.WriteLine(">>>>>>>>>>>>>>>> [Unequip-Item Request] " + JsonSerializer.Serialize(request));
+        Console.WriteLine(">>>>>>>>>>>>>>>> [Unequip-Item Request] " + JsonSerializer.Serialize(requestBody));
 
-        return await _character.UnequipItemAsnyc(request);
+        return await _character.UnequipItemAsnyc(requestBody);
     }
 
     /// <summary>
-    /// 밥주기 요청
+    /// 유저 재화 소비
     /// </summary>
-    [HttpPost("Feed")]
-    public async Task<Result<Res_Feed>> FeedAsync([FromBody] Req_Feed request)
+    [HttpPost("UseGoods")]
+    public async Task<Result> UseGoodsAsync([FromBody] Req_UseGoods requestBody)
     {
-        Console.WriteLine(">>>>>>>>>>>>>>>> [Feed Request] " + JsonSerializer.Serialize(request));
-        return await _character.FeedAsync(request);
-    }
+        Console.WriteLine(">>>>>>>>>>>>>>>> [Feed Request] " + JsonSerializer.Serialize(requestBody));
 
-    /// <summary>
-    /// 놀아주기 요청
-    /// </summary>
-    [HttpPost("Play")]
-    public async Task<Result<Res_Play>> PlayAsync([FromBody] Req_Play request)
-    {
-        Console.WriteLine(">>>>>>>>>>>>>>>> [Feed Request] " + JsonSerializer.Serialize(request));
-        return await _character.PlayAsync(request);
+        if (_masterHandler.IsValid<InfoItem>(requestBody.GoodsIndex))
+        {
+            Console.WriteLine($"Db에 존재하지 않는 아이템 인덱스 : {requestBody.GoodsIndex}");
+            Result.Fail(ResultCodes.Equip_Fail_NotExist);
+        }
+
+        if (!Enum.IsDefined(requestBody.GoodType))
+        {
+            Console.WriteLine("Good Type에 정의되지 않은 Type");
+            return Result.Fail(ResultCodes.Goods_Fail_NotValidType);
+        }
+
+        if (requestBody.Quantity <= 0)
+        {
+            Console.WriteLine("수량이 0보다 작음");
+            return Result.Fail(ResultCodes.Goods_Fail_LessThanZero);
+        }
+
+        var result = await _character.UseGoodsAsync(requestBody);
+
+        if (result.ResultCodes == ResultCodes.Ok)
+        {
+            result = await _mission.UpdateMissionProcessAsync(requestBody.UserIndex, requestBody.GoodsIndex, requestBody.Quantity);
+        }
+
+        return result;
     }
 }

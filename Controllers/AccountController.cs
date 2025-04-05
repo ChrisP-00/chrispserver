@@ -22,22 +22,19 @@ public class AccountController : ControllerBase
     /// 회원가입 요청
     /// </summary>
     [HttpPost("Create-Account")]
-    public async Task<Result> CreateAccountAsync([FromBody] Req_CreateAccount request)
+    public async Task<Result> CreateAccountAsync([FromBody] Req_CreateAccount requestBody)
     {
-        Console.WriteLine(">>>>>>>>>>>>>>>> [CreateAccount Request] " + JsonSerializer.Serialize(request));
-        return await _account.CreateAccountAsync(request);
+        Console.WriteLine(">>>>>>>>>>>>>>>> [CreateAccount Request] " + JsonSerializer.Serialize(requestBody));
+        return await _account.CreateAccountAsync(requestBody);
     }
 
     /// <summary>
     /// 로그인 요청
     /// </summary>
     [HttpPost("Login")]
-    public async Task<Result<Res_Login>> LoginAsync([FromBody] Req_Login request)
+    public async Task<Result<Res_Login>> LoginAsync([FromBody] Req_Login requestBody)
     {
-        Console.WriteLine(">>>>>>>>>>>>>>>> [Login Request] " + JsonSerializer.Serialize(request));
-        return await _account.LoginAsync(request);
+        Console.WriteLine(">>>>>>>>>>>>>>>> [Login Request] " + JsonSerializer.Serialize(requestBody));
+        return await _account.LoginAsync(requestBody);
     }
-
-
-
 }

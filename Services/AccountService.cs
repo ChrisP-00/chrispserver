@@ -2,34 +2,30 @@
 using chrispserver.DbConfigurations;
 using chrispserver.ResReqModels;
 using SqlKata.Execution;
+using static chrispserver.DbEntity.InfoEntities;
 using static chrispserver.DbEntity.UserEntities;
-using System.Data.Common;
 using static chrispserver.ResReqModels.Request;
 using static chrispserver.ResReqModels.Response;
-using System.Transactions;
-using System.Xml.Linq;
-using static chrispserver.DbEntity.InfoEntities;
-using System.Collections.Generic;
+
 
 namespace chrispserver.Services;
 
 public class AccountService : IAccount
 {
-    private readonly IMaster _master;
     private readonly ConnectionManager _connectionManager;
+    private readonly IMasterHandler _masterHandler;
 
-    public AccountService(ConnectionManager connectionManager, IMaster master)
+    public AccountService(ConnectionManager connectionManager, IMasterHandler masterHandler)
     {
         _connectionManager = connectionManager;
-        _master = master;
+        _masterHandler = masterHandler;
     }
-
 
     public async Task<Result> CreateAccountAsync(Req_CreateAccount requestBody)
     {
-        var db = _connectionManager.GetSqlQueryFactory(DbKeys.GameServerDB);
+        using var gameDb = _connectionManager.GetSqlQueryFactory(DbKeys.GameServerDB);
 
-        UserAccount userAccount = await db.Query(TableNames.UserAccount)
+        UserAccount userAccount = await gameDb.Query(TableNames.UserAccount)
         .Where(DbColumns.MemberId, requestBody.MemberId)
         .FirstOrDefaultAsync<UserAccount>();
 
@@ -54,8 +50,8 @@ public class AccountService : IAccount
         // define에서 가져오기
         try
         {
-            string? rawNickname = _master.Defines
-                    .FirstOrDefault(d => d.Define_Index == 4)?.Description;
+            InfoDefine? infoDefine = _masterHandler.GetInfoDataByIndex<InfoDefine>(4);
+            string? rawNickname = infoDefine?.Description;  
 
             string defaultNickname = string.IsNullOrWhiteSpace(rawNickname) ? "졸리" : rawNickname;
 
@@ -70,7 +66,7 @@ public class AccountService : IAccount
                     Nickname = string.IsNullOrWhiteSpace(requestBody.Nickname)
                                     ? defaultNickname
                                     : requestBody.Nickname
-            }, transaction: transaction);
+                }, transaction: transaction);
 
                 Console.WriteLine($"user index : {index} ");
 
@@ -113,27 +109,42 @@ public class AccountService : IAccount
 
 
                 // 4. 일일 미션 넣어주기
+                foreach (var mission in _masterHandler.GetAll<InfoDailyMission>())
+                {
+                    int missionInsert = await db.Query(TableNames.UserDailyMission).InsertAsync(new
+                    {
+                        user_index = index,
+                        mission_index = mission.Daily_Mission_Index,
+                        goods_type = mission.Goods_Type,
+                        goods_index = mission.Goods_Index,
+                        complete_count = mission.Mission_Gaol_Count,
+                    }, transaction: transaction);
 
+                    if (missionInsert <= 0)
+                    {
+                        throw new Exception($"[DailyMission] DailyMission 삽입 실패 - daily_mission_index: {mission.Daily_Mission_Index}");
+                    }
+                }
             });
 
             return result;
         }
         catch (Exception ex)
         {
-            Console.WriteLine(ex.Message );
+            Console.WriteLine(ex.Message);
 
             return Result.Fail(ResultCodes.Create_Account_Fail_Exception);
         }
     }
 
-    public async Task<Result<Res_Login>> LoginAsync(Request.Req_Login requestBody)
+    public async Task<Result<Res_Login>> LoginAsync(Req_Login requestBody)
     {
 
-        var db = _connectionManager.GetSqlQueryFactory(DbKeys.GameServerDB);
+        var gameDb = _connectionManager.GetSqlQueryFactory(DbKeys.GameServerDB);
 
-        UserAccount userAccount = await db.Query(TableNames.UserAccount)
+        User_Account userAccount = await gameDb.Query(TableNames.UserAccount)
         .Where(DbColumns.MemberId, requestBody.MemberId)
-        .FirstOrDefaultAsync<UserAccount>();
+        .FirstOrDefaultAsync<User_Account>();
 
         if (userAccount == null)
         {
@@ -154,33 +165,96 @@ public class AccountService : IAccount
 
         int userIndex = userAccount.User_Index;
 
-        var userCharacters = await db.Query(TableNames.UserCharacter)
+        var userCharacters = await gameDb.Query(TableNames.UserCharacter)
              .Where("user_index", userIndex)
              .GetAsync<UserCharacter>();
 
-        var userInventories = await db.Query(TableNames.UserInventory)
+        var userInventories = await gameDb.Query(TableNames.UserInventory)
             .Where("user_index", userIndex)
             .GetAsync<UserInventory>();
 
-        var userGoods = await db.Query(TableNames.UserGoods)
+        var userGoods = await gameDb.Query(TableNames.UserGoods)
             .Where("user_index", userIndex)
             .GetAsync<UserGoods>();
 
-        var userDailyMissions = await db.Query(TableNames.UserDailyMission)
+        var userDailyMissions = await gameDb.Query(TableNames.UserDailyMission)
             .Where("user_index", userIndex)
             .GetAsync<UserDailyMission>();
+
+  
+        foreach(var mission in userDailyMissions)
+        {
+            if(mission.Updated_At < DateTime.Today)
+            {
+                if (mission.Mission_Progress > 0)
+                {
+                    await gameDb.Query(TableNames.UserDailyMission)
+                            .Where(DbColumns.UserIndex, userAccount.User_Index)
+                            .Where(DbColumns.DailyMissionIndex, mission.Daily_Mission_Index)
+                            .UpdateAsync(new
+                            {
+                                process_count = 0,
+                                is_received = false,
+                                updated_at = DateTime.Now
+                            });
+                }
+                else
+                {
+                    await gameDb.Query(TableNames.UserDailyMission)
+                            .Where(DbColumns.UserIndex, userAccount.User_Index)
+                            .Where(DbColumns.DailyMissionIndex, mission.Daily_Mission_Index)
+                            .UpdateAsync(new
+                            {
+                                is_received = false,
+                                updated_at = DateTime.Now
+                            });
+                }
+
+                mission.Mission_Progress = 0;
+                mission.Is_Received = false;
+            }
+        }
+
+        var _userCharacter = userCharacters.Select(c => new User_Character
+        {
+            Character_Index = c.Character_Index,
+            Level = c.Level,
+            Exp = c.Exp,
+            Is_Active = c.Is_Active,
+            is_acquired = c.Is_acquired
+        }).ToList();
+
+        var _userInvetory = userInventories.Select(c => new User_Inventory
+        {
+             Item_Index = c.Item_Index
+        }).ToList();
+
+        var _userGoods = userGoods.Select(c => new User_Goods
+        {
+            Goods_Index = c.Goods_Index,
+            Quantity = c.Quantity,
+        }).ToList();
+
+        var _userDailyMissions = userDailyMissions.Select(c => new User_Daily_Missions
+        {
+            Daily_Mission_Index = c.Daily_Mission_Index,
+            Mission_Progress = c.Mission_Progress,
+            Is_Received = c.Is_Received,
+        }).ToList();
+
 
         var resultData = new Res_Login
         {
             UserAccount = userAccount,
-            UserCharacters = userCharacters.ToList(),
-            UserInventories = userInventories.ToList(),
-            UserGoods = userGoods.ToList(),
-            UserDailyMission = userDailyMissions.ToList()
+            UserCharacters = _userCharacter.ToList(),
+            UserInventories = _userInvetory.ToList(),
+            UserGoods = _userGoods.ToList(),
+            UserDailyMission = _userDailyMissions.ToList()
         };
 
+       
         // 마지막 로그인 시간 변경 
-        await db.Query(TableNames.UserAccount)
+        await gameDb.Query(TableNames.UserAccount)
             .Where("user_index", userIndex)
             .UpdateAsync(new
             {
@@ -189,4 +263,6 @@ public class AccountService : IAccount
 
         return Result<Res_Login>.Success(resultData);
     }
+
+
 }

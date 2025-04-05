@@ -4,9 +4,9 @@ using static chrispserver.DbEntity.InfoEntities;
 public interface IMaster
 {
     Task LoadAllAsync();
-    List<Character> Characters { get; }
-    List<DailyMission> DailyMissions { get; }
-    List<Define> Defines { get; }
-    List<Goods> Goods { get; }
-    List<Item> Items { get; }
+    List<InfoCharacter> Characters { get; }
+    List<InfoDailyMission> DailyMissions { get; }
+    List<InfoDefine> Defines { get; }
+    List<InfoGoods> Goods { get; }
+    List<InfoItem> Items { get; }
 }

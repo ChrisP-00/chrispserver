@@ -1,20 +1,18 @@
-﻿using chrispserver.Handlers;
-using chrispserver.ResReqModels;
+﻿using chrispserver.ResReqModels;
+using Microsoft.AspNetCore.Mvc;
+using static chrispserver.DbEntity.InfoEntities;
 using static chrispserver.ResReqModels.Request;
-using static chrispserver.ResReqModels.Response;
 
 namespace chrispserver.Services;
 
 public interface ICharacter
 {
     
-    Task<Result<Res_Feed>> FeedAsync(Req_Feed requestBody);
+    Task<Result> UseGoodsAsync(Req_UseGoods requestBody);
     
-    Task<Result<Res_Play>> PlayAsync(Req_Play requestBody);
-    
-    Task<Result<Res_EquipCharacter>> EquipCharacterAsync(Req_EquipCharacter requestBody);
+    Task<Result> EquipCharacterAsync(Req_EquipCharacter requestBody);
 
-    Task<Result> EquipItemAsync(Req_EquipItem resquestBody);
+    Task<Result> EquipItemAsync(Req_EquipItem resquestBody, InfoItem infoItem);
 
     Task<Result> UnequipItemAsnyc(Req_EquipItem resquestBody);
 }
