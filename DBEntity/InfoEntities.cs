@@ -2,43 +2,43 @@
 
 public class InfoEntities
 {
-    public class Define
+    public class InfoDefine
     {
         public int Define_Index { get; set; }
         public string? Description { get; set; }
         public float Value { get; set; }
     }
 
-    public class Goods
+    public class InfoGoods
     {
         public int Goods_Index { get; set; }
-        public int Type { get; set; }
+        public int Goods_Type { get; set; }
         public string? Name { get; set; }
     }
 
-    public class Character
+    public class InfoCharacter
     {
         public int Character_Index { get; set; }
         public string? Name { get; set; }
     }
 
 
-    public class Item
+    public class InfoItem
     {
         public int Item_Index { get; set; }
         public string? Name { get; set; }
-        public byte Type { get; set; }
+        public byte Item_Type { get; set; }
         public int Required_Level { get; set; }
         public int Equip_Character_Index { get; set; }
     }
 
 
-    public class DailyMission
+    public class InfoDailyMission
     {
         public int Daily_Mission_Index { get; set; }
-        public int Type { get; set; }
+        public int Goods_Type { get; set; }
         public int Goods_Index { get; set; }
-        public int Quantity { get; set; }
+        public byte Mission_Gaol_Count { get; set; }
         public int Reward_Type { get; set; }
         public int Reward_Amount { get; set; }
     }

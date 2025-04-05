@@ -10,7 +10,6 @@ public class Enums
         Point = 4,
     }
 
-
     public enum ItemType
     {
         head = 1,

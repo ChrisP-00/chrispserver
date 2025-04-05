@@ -13,7 +13,6 @@ public class UserEntities
         public DateTime Last_Login_At { get; set; }
     }
 
-
     public class UserCharacter
     {
         public int User_Index { get; set; }
@@ -21,11 +20,10 @@ public class UserEntities
         public int Level { get; set; }
         public int Exp { get; set; }
         public bool Is_Active { get; set; }
-        public bool is_acquired { get; set; }
-        public DateTime equipped_at { get; set; }
-        public DateTime acquired_at { get; set; }
+        public bool Is_acquired { get; set; }
+        public DateTime Equipped_At { get; set; }
+        public DateTime Acquired_At { get; set; }
     }
-
 
     public class UserGoods
     {
@@ -40,7 +38,6 @@ public class UserEntities
         public int Item_Index { get; set; }
     }
 
-
     public class UserEquip
     {
         public int User_Index { get; set; }
@@ -52,8 +49,10 @@ public class UserEntities
     public class UserDailyMission
     {
         public int User_Index { get; set; }
-        public int Mission_Index { get; set; }
-        public int Quantity { get; set; }
+        public int Daily_Mission_Index { get; set; }
+        public int Mission_Gaol_Count { get; set; }
+        public int Mission_Progress { get; set; }
         public bool Is_Received { get; set; }
+        public DateTime Updated_At { get; set; }
     }
 }

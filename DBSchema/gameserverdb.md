@@ -12,7 +12,7 @@ CREATE DATABASE IF NOT EXISTS gameserverdb;
 ```sql
 DROP TABLE IF EXISTS gameserverdb.`user_account`;
 CREATE TABLE IF NOT EXISTS gameserverdb.`user_account` (
-    user_index                  INT          NOT NULL AUTO_INCREMENT PRIMARY KEY COMMENT '유저 고유 ID',
+    user_index                  INT          NOT NULL AUTO_INCREMENT PRIMARY KEY     COMMENT '유저 고유 ID',
     member_id                   VARCHAR(20)  NOT NULL   COMMENT '카페24 멤버 아이디',
     unity_device_number         VARCHAR(100) NOT NULL   COMMENT '유니티 디바이스 ID',
     nickname                    VARCHAR(15)  NOT NULL   COMMENT '닉네임',
@@ -40,6 +40,36 @@ CREATE TABLE IF NOT EXISTS gameserverdb.`user_character` (
 ) COMMENT='유저 캐릭터 정보 테이블';
 ```
 
+## User_Daily_Mission Table
+
+```sql
+DROP TABLE IF EXISTS gameserverdb.`user_daily_mission`;
+CREATE TABLE IF NOT EXISTS gameserverdb.`user_daily_mission` (
+    user_index              INT     NOT NULL    COMMENT '사용자 고유 식별자',
+    daily_mission_index     INT     NOT NULL    COMMENT '일일 미션 고유 식별자',
+    goods_type              INT     NOT NULL    COMMENT '재화 타입',
+    goods_index             INT     NOT NULL    COMMENT '재화 고유 식별자',
+    mission_gaol_count      TINYINT NOT NULL    DEFAULT 0   COMMENT '수행 완료 횟수',
+    mission_progress        TINYINT NOT NULL    DEFAULT 0   COMMENT '수행 진행 횟수',
+    is_received             BOOL    NOT NULL    DEFAULT FALSE   COMMENT '보상 수령 여부',
+    updated_at              DATETIME DEFAULT CURRENT_TIMESTAMP  COMMENT '수령 완료 날짜 - 날이 지나면 초기화',
+    PRIMARY KEY (user_index, mission_index)
+) COMMENT='유저 일일 미션 테이블';
+```
+
+## User_Equip Table
+
+```sql
+DROP TABLE IF EXISTS gameserverdb.`user_equip`;
+CREATE TABLE IF NOT EXISTS gameserverdb.`user_equip` (
+    user_index        INT      NOT NULL     COMMENT '사용자 고유 식별자',
+    character_index   INT      NOT NULL     COMMENT '캐릭터 ID',
+    item_type         TINYINT  NOT NULL     COMMENT '아이템 Type',
+    item_index        INT      NOT NULL     COMMENT '아이템 ID',
+    PRIMARY KEY (user_index, character_index, item_index)
+) COMMENT='유저 캐릭터 장착 테이블';
+```
+
 ## User_Goods Table
 
 ``` sql
@@ -52,7 +82,6 @@ CREATE TABLE IF NOT EXISTS gameserverdb.`user_goods` (
 ) COMMENT='유저 재화 테이블';
 ```
 
-
 ## User_Invetory Table
 
 ```sql
@@ -63,35 +92,6 @@ CREATE TABLE IF NOT EXISTS gameserverdb.`user_inventory` (
     owned_at                    DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP    COMMENT '아이템 획득 날짜',
     PRIMARY KEY (user_index, item_index)
 ) COMMENT='유저 보유 아이템 테이블';
-```
-
-
-## User_Equip Table
-
-```sql
-DROP TABLE IF EXISTS gameserverdb.`user_equip`;
-CREATE TABLE IF NOT EXISTS gameserverdb.`user_equip` (
-    user_index        INT      NOT NULL     COMMENT '사용자 고유 식별자',
-    character_index   INT      NOT NULL     COMMENT '캐릭터 ID',
-    item_index        INT      NOT NULL     COMMENT '아이템 ID',
-    is_equipped       BOOL     NOT NULL DEFAULT FALSE      COMMENT '착용 여부 (0 = 미착용, 1 = 착용)',
-    PRIMARY KEY (user_index, character_index, item_index)
-) COMMENT='유저 캐릭터 장착 테이블';
-```
-
-
-## User_Daily_Mission Table
-
-```sql
-DROP TABLE IF EXISTS gameserverdb.`user_daily_mission`;
-CREATE TABLE IF NOT EXISTS gameserverdb.`user_daily_mission` (
-    user_index          INT NOT NULL    COMMENT '사용자 고유 식별자',
-    mission_index       INT NOT NULL    COMMENT '일일 미션 고유 인덱스',
-    quantity              INT NOT NULL DEFAULT 0  COMMENT '수행 횟수',
-    is_received         BOOL NOT NULL DEFAULT FALSE COMMENT '수령 여부',
-    received_at         DATETIME    COMMENT '수령 완료 날짜 - 날이 지나면 초기화',
-    PRIMARY KEY (user_index, mission_index)
-) COMMENT='유저 일일 미션 테이블';
 ```
 
 ## User_Summon_State Table

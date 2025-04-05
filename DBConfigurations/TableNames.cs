@@ -22,11 +22,14 @@ public static class TableNames
 
 
     // master db
-    public static readonly string InfoCharacter = "character";
+    public static readonly string InfoCharacter = "info_character";
 
-    public static readonly string InfoGoods = "goods";
+    public static readonly string InfoGoods = "info_goods";
 
-    public static readonly string InfoItem = "item";
+    public static readonly string InfoItem = "info_item";
 
+    public static readonly string InfoDailyMission = "info_daily_mission";
+
+    public static readonly string InfoDefine = "info_define";
 }
 

@@ -1,24 +1,18 @@
-﻿
-
-using static chrispserver.ResReqModels.Enums;
+﻿using static chrispserver.ResReqModels.Enums;
 
 namespace chrispserver.ResReqModels;
 
 
 public class Request
 {
-    public class Req_Base
+    public class Req_UserAuth
     {
         public int UserIndex { get; set; }
+        //public int UserToken { get; set; }
     }
 
 
     #region 계정 관련 모델
-    public class Req_UserAuth : Req_Base
-    {
-        public int UserToken { get; set; }
-    }
-     
     public class Req_CreateAccount
     {
         public string? MemberId { get; set; }
@@ -35,27 +29,37 @@ public class Request
 
 
     #region 캐릭터 관련 모델
-    public class Req_Feed : Req_Base
+    public class Req_UseGoods : Req_UserAuth
     {
+        public GoodType GoodType { get; set; }
         public int GoodsIndex { get; set; }
         public int Quantity { get; set; }
     }
 
-    public class Req_Play : Req_Base
+    public class Req_EquipCharacter : Req_UserAuth
     {
+        public int EquipCharacterIndex { get; set; }
+    }
+
+    public class Req_EquipItem : Req_UserAuth
+    {
+        public int EquipItemIndex { get; set; }
+
+    }
+    #endregion
+
+    #region 미션 관련 모델
+    public class Req_DailyMission : Req_UserAuth
+    {
+        public int DailyMissionIndex { get; set; }
+        public int GoodsType { get; set; }
         public int GoodsIndex { get; set; }
-        public int Quantity { get; set; }
+        public int Amount { get; set; }
     }
 
-    public class Req_EquipCharacter : Req_Base
+    public class Req_ReceiveMission : Req_UserAuth
     {
-        public int CharacterIndex { get; set; }
-    }
-
-    public class Req_EquipItem : Req_EquipCharacter
-    {
-        public int RequestedItemIndex { get; set; }
-
+        public int DailyMissionIndex { get; set; }
     }
     #endregion
 }

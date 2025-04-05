@@ -21,7 +21,6 @@ public class Result
 
 }
 
-// object 비용 비쌈 -> 없애기
 public class Result<T>
 {
     public ResultCodes ResultCodes { get; set; }

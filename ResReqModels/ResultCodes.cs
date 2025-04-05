@@ -49,12 +49,14 @@ public enum ResultCodes
     Login_Fail_Exception = -2999,        
 
     // 재화 사용 오류 -3000 ~ -3999
-    [Description("사용자가 보유한 재화가 없음")]
-    Goods_Fail_NotEnough = -3001,  
     [Description("보유한 재화 수량이 부족함")]
+    Goods_Fail_NotEnough = -3001,  
+    [Description("사용자가 보유한 재화가 없음")]
     Goods_Fail_NotExist = -3002,  
     [Description("사용할 수 없는 재화")]
-    Goods_Fail_NotValidType = -3003,          
+    Goods_Fail_NotValidType = -3003,
+    [Description("보유한 재화 수량이 부족함")]
+    Goods_Fail_LessThanZero = -3004,
     [Description("밥주기 중 오류 발생")]
     Goods_Fail_Exception = -3999,          
 
@@ -73,6 +75,8 @@ public enum ResultCodes
     Equip_Fail_CharacterAlreadyEquipped = -6101,
     [Description("이미 장착된 캐릭터")]
     Equip_Fail_NoCharacter = -6102,
+    [Description("존재하지 않는 캐릭터")]
+    Equip_Fail_CharacterNotExist,
 
     // 아이템 장착 오류 -6200 ~ -6300
     [Description("장착할 아이템을 가지고 있지 않음")]
