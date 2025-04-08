@@ -1,13 +1,10 @@
 ﻿using chrispserver.DbConfigurations;
 using chrispserver.ResReqModels;
+using Microsoft.AspNetCore.Identity;
 using SqlKata.Execution;
-using System.Transactions;
-using System;
 using static chrispserver.DbEntity.InfoEntities;
 using static chrispserver.DbEntity.UserEntities;
 using static chrispserver.ResReqModels.Request;
-using static StackExchange.Redis.Role;
-using System.Reflection;
 
 
 namespace chrispserver.Services;
@@ -15,23 +12,23 @@ namespace chrispserver.Services;
 public class CharacterService : ICharacter
 {
     private readonly ConnectionManager _connectionManager;
+    private readonly IMasterHandler _masterHandler;
 
     private QueryFactory _gameDb => _connectionManager.GetSqlQueryFactory(DbKeys.GameServerDB);
 
-    public CharacterService(ConnectionManager connectionManager)
+    public CharacterService(ConnectionManager connectionManager, IMasterHandler masterHandler)
     {
         _connectionManager = connectionManager;
+        _masterHandler = masterHandler;
     }
 
     #region 캐릭터, 아이템 장탈착 기능
-
-
     public async Task<Result> EquipCharacterAsync(Req_EquipCharacter requestBody)
     {
-        var gameDb = _gameDb;
-
         try
         {
+            using var gameDb = _gameDb;
+
             UserCharacter currentCharacter = await gameDb.Query(TableNames.UserCharacter)
                .Where(DbColumns.UserIndex, requestBody.UserIndex)
                .Where(DbColumns.CharacterIndex, requestBody.EquipCharacterIndex)
@@ -39,7 +36,7 @@ public class CharacterService : ICharacter
 
             if (currentCharacter != null && currentCharacter.Is_Active)
             {
-                Console.WriteLine($"{currentCharacter.Character_Index}는 이미 활성화된 캐릭터 ");
+                Console.WriteLine($"[Character] 캐릭터 장착 실패 : {currentCharacter.Character_Index}는 이미 활성화된 캐릭터");
                 return Result.Fail(ResultCodes.Equip_Fail_CharacterAlreadyEquipped);
             }
 
@@ -57,7 +54,7 @@ public class CharacterService : ICharacter
                 currentCharacter = newCharacter;
             }
 
-            int resetLevel = 5; // define에서 가져오기
+            int resetLevel = _masterHandler.GetDefaultValueOrDefault(5, 5, "Level Reset");
             int defaultLevel = 0;
             int defaultEXP = 0;
 
@@ -69,7 +66,7 @@ public class CharacterService : ICharacter
             // 다른 활성화된 캐릭터가 있음
             if (AllActivatedCharacters > 1)
             {
-                Console.WriteLine("현재 1개 초과의 캐릭터가 활성화 되어있습니다.");
+                Console.WriteLine("[Character] 캐릭터 장착 오류 : 현재 1개 초과의 캐릭터가 활성화 되어있습니다.");
             }
 
             UserCharacter currentActivatedCharacter = await gameDb.Query(TableNames.UserCharacter)
@@ -111,14 +108,11 @@ public class CharacterService : ICharacter
                     Equipped_At = today
                 });
 
-            // 현재 장착한 캐릭터 아이템 정보 전달
-            // UserEquip 테이블 전달 
-
             return Result.Success();
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"아이템 장탈 오류 발생 {ex.ToString()}");
+            Console.WriteLine($"[Character] 캐릭터 장착 실패 : {ex.ToString()}");
             return Result.Fail(ResultCodes.Equip_Fail_Exception);
         }
     }
@@ -137,7 +131,7 @@ public class CharacterService : ICharacter
         if (lastActivatedCharacter == null)
         {
             // 로그 찍기
-            Console.WriteLine("현재 활성화된 캐릭터가 없습니다.");
+            Console.WriteLine("[Item] 아이템 장착 오류 : 현재 활성화된 캐릭터가 없음");
 
             // 마지막에 장착한 캐릭터
             lastActivatedCharacter = await gameDb.Query(TableNames.UserCharacter)
@@ -154,14 +148,13 @@ public class CharacterService : ICharacter
                         equipped_At = DateTime.Now
                     });
 
-            Console.WriteLine($"{lastActivatedCharacter.Character_Index}으로 활성화 했습니다.");
+            Console.WriteLine($"[Item] 아이템 장착 오류 : {lastActivatedCharacter.Character_Index}으로 활성화");
         }
-
 
 
         if (infoItem.Equip_Character_Index != lastActivatedCharacter.Character_Index)
         {
-            Console.WriteLine("현재 캐릭터에 장착할 수 없는 아이템 입니다.");
+            Console.WriteLine("[Item] 아이템 장착 실패 : 현재 캐릭터에 장착할 수 없는 아이템");
             return Result.Fail(ResultCodes.Equip_Fail_Incompatible);
         }
 
@@ -173,7 +166,7 @@ public class CharacterService : ICharacter
 
         if (hasItem == null)
         {
-            Console.WriteLine("요청한 아이템이 없습니다.");
+            Console.WriteLine("[Item] 아이템 장착 실패 : 요청한 아이템이 없음");
             return Result.Fail(ResultCodes.Equip_Fail_NoItem);
         }
 
@@ -186,7 +179,7 @@ public class CharacterService : ICharacter
 
         if (newEquipItem != null)
         {
-            Console.WriteLine("이미 장착한 아이템 입니다.");
+            Console.WriteLine("[Item] 아이템 장착 실패 : 이미 장착한 아이템");
             return Result.Fail(ResultCodes.Equip_Fail_ItemAlreadyEquipped);
         }
 
@@ -197,7 +190,7 @@ public class CharacterService : ICharacter
             .WhereNot(DbColumns.ItemIndex, requestBody.EquipItemIndex)
             .DeleteAsync();
 
-        Console.WriteLine("현재 활성화된 아이템 제거");
+        Console.WriteLine("[Item] 아이템 장착 : 현재 활성화된 아이템 제거");
 
         // 로그에 추가
 
@@ -214,10 +207,10 @@ public class CharacterService : ICharacter
 
     public async Task<Result> UnequipItemAsnyc(Req_EquipItem requestBody)
     {
-        var gameDb = _gameDb;
-
         try
         {
+            var gameDb = _gameDb;
+
             // 현재 장착 캐릭터 확인
             UserCharacter lastActivatedCharacter = await gameDb.Query(TableNames.UserCharacter)
                     .Where(DbColumns.UserIndex, requestBody.UserIndex)
@@ -228,7 +221,7 @@ public class CharacterService : ICharacter
             if (lastActivatedCharacter == null)
             {
                 // 로그 찍기
-                Console.WriteLine("현재 활성화된 캐릭터가 없습니다.");
+                Console.WriteLine("[Item] 아이템 장탈 오류 : 현재 활성화된 캐릭터가 없음");
 
                 // 마지막에 장착한 캐릭터
                 lastActivatedCharacter = await gameDb.Query(TableNames.UserCharacter)
@@ -245,7 +238,7 @@ public class CharacterService : ICharacter
                             equipped_At = DateTime.Now
                         });
 
-                Console.WriteLine($"{lastActivatedCharacter.Character_Index}으로 활성화 했습니다.");
+                Console.WriteLine($"[Item] 아이템 장탈 오류 : {lastActivatedCharacter.Character_Index}으로 활성화");
             }
 
             // 요청한 아이템 보유 확인
@@ -256,7 +249,7 @@ public class CharacterService : ICharacter
 
             if (hasItem == null)
             {
-                Console.WriteLine("요청한 아이템이 없습니다.");
+                Console.WriteLine("[Item] 아이템 장탈 실패 : 요청한 아이템 없음");
                 return Result.Fail(ResultCodes.Equip_Fail_NoItem);
             }
 
@@ -269,7 +262,7 @@ public class CharacterService : ICharacter
 
             if (countEquipItem == 0)
             {
-                Console.WriteLine("현재 장착하지 않은 아이템입니다.");
+                Console.WriteLine("[Item] 아이템 장탈 실패 : 현재 장착하지 않은 아이템");
                 return Result.Fail(ResultCodes.Equip_Fail_NoEquippedItem);
             }
 
@@ -282,7 +275,7 @@ public class CharacterService : ICharacter
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"아이템 장탈 오류 발생 {ex.ToString()}");
+            Console.WriteLine($"[Item] 아이템 장탈 실패 : {ex.ToString()}");
             return Result.Fail(ResultCodes.Equip_Fail_Exception);
         }
     }
@@ -292,34 +285,43 @@ public class CharacterService : ICharacter
 
     public async Task<Result> UseGoodsAsync(Req_UseGoods requestBody)
     {
-        var gameDb = _gameDb;
-
-        // 요청한 재화의 수량 확인
-        UserGoods userGoods = await gameDb.Query(TableNames.UserGoods)
-                .Where(DbColumns.UserIndex, requestBody.UserIndex)
-                .Where(DbColumns.GoodsIndex, requestBody.GoodsIndex)
-                .FirstOrDefaultAsync<UserGoods>();
-
-        if (userGoods == null)
+        try
         {
-            Console.WriteLine("데이터를 찾을 수 없습니다.");
-            return Result.Fail(ResultCodes.Goods_Fail_NotExist);
-        }
+            var gameDb = _gameDb;
 
-        if (userGoods.Quantity < requestBody.Quantity)
+            // 요청한 재화의 수량 확인
+            UserGoods userGoods = await gameDb.Query(TableNames.UserGoods)
+                    .Where(DbColumns.UserIndex, requestBody.UserIndex)
+                    .Where(DbColumns.GoodsIndex, requestBody.GoodsIndex)
+                    .FirstOrDefaultAsync<UserGoods>();
+
+            if (userGoods == null)
+            {
+                Console.WriteLine("[Goods] 재화 사용 실패 : 데이터를 찾을 수 없음");
+                return Result.Fail(ResultCodes.Goods_Fail_NotExist);
+            }
+
+            if (userGoods.Quantity < requestBody.Quantity)
+            {
+                Console.WriteLine("[Goods] 재화 사용 실패 : 요청한 재화의 수량 부족");
+                return Result.Fail(ResultCodes.Goods_Fail_NotEnough);
+            }
+
+            int remainQuantity = userGoods.Quantity - requestBody.Quantity;
+
+            await gameDb.Query(TableNames.UserGoods)
+                    .Where(DbColumns.UserIndex, requestBody.UserIndex)
+                    .Where(DbColumns.GoodsIndex, requestBody.GoodsIndex)
+                    .UpdateAsync(new { quantity = remainQuantity });
+
+            return Result.Success();
+        }
+        catch (Exception ex)
         {
-            Console.WriteLine("요청한 재화의 수량이 부족합니다.");
-            return Result.Fail(ResultCodes.Goods_Fail_NotEnough);
+            Console.WriteLine($"[Goods] 재화 사용 실패 : {ex.ToString()}");
+            return Result.Fail(ResultCodes.Goods_Fail_Exception);
         }
-
-        int remainQuantity = userGoods.Quantity - requestBody.Quantity;
-
-        await gameDb.Query(TableNames.UserGoods)
-                .Where(DbColumns.UserIndex, requestBody.UserIndex)
-                .Where(DbColumns.GoodsIndex, requestBody.GoodsIndex)
-                .UpdateAsync(new { quantity = remainQuantity });
-
-        return Result.Success();
     }
     #endregion
+
 }

@@ -8,7 +8,7 @@ using static chrispserver.ResReqModels.Request;
 namespace chrispserver.Controllers;
 
 [ApiController]
-[Route("account")]
+[Route("Account")]
 public class AccountController : ControllerBase
 {
     private readonly IAccount _account;

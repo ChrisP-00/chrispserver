@@ -42,6 +42,7 @@ public class UserEntities
     {
         public int User_Index { get; set; }
         public int Character_Index { get; set; }
+        public int Item_Type { get; set; }
         public int Item_Index { get; set; }
         public bool Is_Equipped { get; set; }
     }

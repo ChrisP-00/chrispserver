@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS masterdb.`info_daily_mission` (
     daily_mission_index     INT         NOT NULL    COMMENT '일일 미션 고유 인덱스',
     goods_type              INT         NOT NULL    COMMENT '미션 타입 (1: 밥주기, 2: 놀아주기 등)',
     goods_index             INT         NOT NULL    COMMENT '사용해야 하는 재화 인덱스',
-    mission_gaol_count      TINYINT     NOT NULL     COMMENT '미션 수행 목표 수',
+    mission_goal_count      TINYINT     NOT NULL     COMMENT '미션 수행 목표 수',
     reward_type             TINYINT     NOT NULL    COMMENT '보상 타입 (goods_index 참조)',
     reward_amount           TINYINT     NOT NULL    COMMENT '보상 수량',
     PRIMARY KEY (daily_mission_index)

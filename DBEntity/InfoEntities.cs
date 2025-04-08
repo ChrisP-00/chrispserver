@@ -38,7 +38,7 @@ public class InfoEntities
         public int Daily_Mission_Index { get; set; }
         public int Goods_Type { get; set; }
         public int Goods_Index { get; set; }
-        public byte Mission_Gaol_Count { get; set; }
+        public byte Mission_Goal_Count { get; set; }
         public int Reward_Type { get; set; }
         public int Reward_Amount { get; set; }
     }

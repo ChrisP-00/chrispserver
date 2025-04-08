@@ -9,6 +9,7 @@ public class Response
         public User_Account? UserAccount { get; set; }
         public List<User_Character>? UserCharacters { get; set; }
         public List<User_Inventory>? UserInventories { get; set; }
+        public List<User_Equip>? UserEquips { get; set; }
         public List<User_Goods>? UserGoods { get; set; }
         public List<User_Daily_Missions>? UserDailyMission { get; set; }
     }
@@ -37,6 +38,12 @@ public class Response
         public int Item_Index { get; set; }
     }
 
+    public class User_Equip
+    {
+        public int Character_Index { get; set; }
+        public int Item_Type { get; set; }
+        public int Item_Index { get; set; }
+    }
 
     public class User_Goods
     {

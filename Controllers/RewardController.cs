@@ -34,6 +34,6 @@ public class RewardController : ControllerBase
 
 
         Console.WriteLine(">>>>>>>>>>>>>>>> [Receive-Mission Request] " + JsonSerializer.Serialize(requestBody));
-        return await _mission.ReceiveMissionAsync(requestBody, infoDailyMission);
+        return await _mission.ReceiveMissionRewardAsync(requestBody, infoDailyMission);
     }
 }

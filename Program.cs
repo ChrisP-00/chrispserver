@@ -16,9 +16,19 @@ builder.Services.AddRazorPages();
 
 var app = builder.Build();
 
-// 마스터 DB 로딩
-var masterHandler = app.Services.GetRequiredService<IMasterHandler>();
-await masterHandler.LoadAllAsync();
+try
+{
+    // 마스터 DB 로딩
+    var masterHandler = app.Services.GetRequiredService<IMasterHandler>();
+    await masterHandler.LoadAllAsync();
+    Console.WriteLine($"[Check] LoadAllAsync 대상 MasterHandler 해시: {masterHandler.GetHashCode()}");
+
+}
+catch (Exception ex)
+{
+    Console.WriteLine($"[Error] 마스터 DB 로딩 실패 : {ex.ToString()}");
+    throw;
+}
 
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
@@ -42,6 +52,3 @@ app.MapRazorPages()
    .WithStaticAssets();
 
 app.Run();
-
-
-

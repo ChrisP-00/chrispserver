@@ -8,7 +8,7 @@ using static chrispserver.ResReqModels.Request;
 namespace chrispserver.Controllers;
 
 [ApiController]
-[Route("character")]
+[Route("Character")]
 public class CharacterController : ControllerBase
 {
     private readonly ICharacter _character;

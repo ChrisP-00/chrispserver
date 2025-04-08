@@ -57,8 +57,6 @@ public class ConnectionManager : IDisposable
         return queryFactory;
     }
 
-
-
     /// <summary>
     /// 주어진 데이터베이스에서 트랜잭션 실행
     /// </summary>
