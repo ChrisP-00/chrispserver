@@ -43,4 +43,12 @@ public class InfoEntities
         public int Reward_Amount { get; set; }
     }
 
+
+    public class InfoLevel
+    {
+        public int Level_Index { get; set; }
+        public int Character_Index { get; set; }
+        public int Level { get; set; }
+        public int Required_Exp { get; set; }
+    }
 }

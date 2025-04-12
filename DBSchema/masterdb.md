@@ -67,3 +67,15 @@ CREATE TABLE IF NOT EXISTS masterdb.`info_item` (
     PRIMARY KEY (item_index)
 ) COMMENT='게임 내 모든 아이템 기본 정보 테이블';
 ```
+
+## LevelUp Table
+```sql
+DROP TABLE IF EXISTS masterdb.`info_Levels`;
+CREATE TABLE IF NOT EXISTS masterdb.`info_Levels` (
+    level_index             INT          NOT NULL               COMMENT '레벨 업 고유 인덱스',
+    character_index         INT          NOT NULL               COMMENT '캐릭터 고유 인덱스',
+    level	                INT	         NOT NULL DEFAULT 0     COMMENT '캐릭터 레벨',
+    required_exp	        INT	         NOT NULL DEFAULT 0     COMMENT '캐릭터 경험치',
+    PRIMARY KEY (level_index)
+) COMMENT='캐릭터 레벨 업 정보 테이블';
+```

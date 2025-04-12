@@ -9,11 +9,12 @@ public class MasterDBService : IMaster
 {
     private readonly ConnectionManager _connectionManager;
 
-    public List<InfoCharacter> Characters { get; private set; } = new();
-    public List<InfoDailyMission> DailyMissions { get; private set; } = new();
-    public List<InfoDefine> Defines { get; private set; } = new();
-    public List<InfoGoods> Goods { get; private set; } = new();
-    public List<InfoItem> Items { get; private set; } = new();
+    public List<InfoCharacter> InfoCharacters { get; private set; } = new();
+    public List<InfoDailyMission> InfoDailyMissions { get; private set; } = new();
+    public List<InfoDefine> InfoDefines { get; private set; } = new();
+    public List<InfoGoods> InfoGoods { get; private set; } = new();
+    public List<InfoItem> InfoItems { get; private set; } = new();
+    public List<InfoLevel> InfoLevels { get; private set; } = new();
 
     public MasterDBService(ConnectionManager connectionManager)
     {
@@ -26,17 +27,18 @@ public class MasterDBService : IMaster
         {
             using var db = _connectionManager.GetSqlQueryFactory(DbKeys.MasterDataDB);
 
-            Characters = (await db.Query(TableNames.InfoCharacter).GetAsync<InfoCharacter>()).ToList();
-            DailyMissions = (await db.Query(TableNames.InfoDailyMission).GetAsync<InfoDailyMission>()).ToList();
-            Defines = (await db.Query(TableNames.InfoDefine).GetAsync<InfoDefine>()).ToList();
-            Goods = (await db.Query(TableNames.InfoGoods).GetAsync<InfoGoods>()).ToList();
-            Items = (await db.Query(TableNames.InfoItem).GetAsync<InfoItem>()).ToList();
+            InfoCharacters = (await db.Query(TableNames.InfoCharacter).GetAsync<InfoCharacter>()).ToList();
+            InfoDailyMissions = (await db.Query(TableNames.InfoDailyMission).GetAsync<InfoDailyMission>()).ToList();
+            InfoDefines = (await db.Query(TableNames.InfoDefine).GetAsync<InfoDefine>()).ToList();
+            InfoGoods = (await db.Query(TableNames.InfoGoods).GetAsync<InfoGoods>()).ToList();
+            InfoItems = (await db.Query(TableNames.InfoItem).GetAsync<InfoItem>()).ToList();
+            InfoLevels = (await db.Query(TableNames.InfoLevels).GetAsync<InfoLevel>()).ToList();
 
-            foreach (var c in DailyMissions)
+            foreach (var c in InfoLevels)
             {
-                Console.WriteLine($"[DailyMissions] Index: {c.Daily_Mission_Index}");
+                Console.WriteLine($"[InfoLevels] Index: {c.Level_Index}");
             }
-            Console.WriteLine($"[MasterDB] DailyMissions 로딩 수: {DailyMissions.Count}");
+            Console.WriteLine($"[MasterDB] InfoLevels 로딩 수: {InfoLevels.Count}");
 
             Console.WriteLine("[MasterDB] 모든 마스터 데이터 로딩 완료");
         }

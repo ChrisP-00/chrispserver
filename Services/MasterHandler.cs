@@ -14,11 +14,12 @@ public class MasterHandler : IMasterHandler
 
         _handlers = new Dictionary<Type, Func<int, object?>>
         {
-            [typeof(InfoItem)] = index => _master.Items.FirstOrDefault(i => i.Item_Index == index),
-            [typeof(InfoGoods)] = index => _master.Goods.FirstOrDefault(g => g.Goods_Index == index),
-            [typeof(InfoCharacter)] = index => _master.Characters.FirstOrDefault(c => c.Character_Index == index),
-            [typeof(InfoDailyMission)] = index => _master.DailyMissions.FirstOrDefault(m => m.Daily_Mission_Index == index),
-            [typeof(InfoDefine)] = index => _master.Defines.FirstOrDefault(d => d.Define_Index == index)
+            [typeof(InfoItem)] = index => _master.InfoItems.FirstOrDefault(i => i.Item_Index == index),
+            [typeof(InfoGoods)] = index => _master.InfoGoods.FirstOrDefault(g => g.Goods_Index == index),
+            [typeof(InfoCharacter)] = index => _master.InfoCharacters.FirstOrDefault(c => c.Character_Index == index),
+            [typeof(InfoDailyMission)] = index => _master.InfoDailyMissions.FirstOrDefault(m => m.Daily_Mission_Index == index),
+            [typeof(InfoDefine)] = index => _master.InfoDefines.FirstOrDefault(d => d.Define_Index == index),
+            [typeof(InfoLevel)] = index => _master.InfoLevels.FirstOrDefault(l => l.Level_Index == index)
         };
     }
 
@@ -28,10 +29,10 @@ public class MasterHandler : IMasterHandler
 
         if (_masterLists.TryGetValue(typeof(T), out var list))
         {
-            if (typeof(T) == typeof(InfoDailyMission))
+            if (typeof(T) == typeof(InfoLevel))
             {
-                var actualList = list as List<InfoDailyMission>;
-                Console.WriteLine($"[DEBUG] DailyMissions Count: {actualList?.Count}");
+                var actualList = list as List<InfoLevel>;
+                Console.WriteLine($"[DEBUG] InfoLevels Count: {actualList?.Count}");
             }
 
 
@@ -78,12 +79,25 @@ public class MasterHandler : IMasterHandler
         _masterLists.Clear();
         _masterLists = new Dictionary<Type, object>
         {
-            [typeof(InfoItem)] = _master.Items,
-            [typeof(InfoGoods)] = _master.Goods,
-            [typeof(InfoCharacter)] = _master.Characters,
-            [typeof(InfoDailyMission)] = _master.DailyMissions,
-            [typeof(InfoDefine)] = _master.Defines,
+            [typeof(InfoItem)] = _master.InfoItems,
+            [typeof(InfoGoods)] = _master.InfoGoods,
+            [typeof(InfoCharacter)] = _master.InfoCharacters,
+            [typeof(InfoDailyMission)] = _master.InfoDailyMissions,
+            [typeof(InfoDefine)] = _master.InfoDefines,
+            [typeof(InfoLevel)] = _master.InfoLevels,
         };
+    }
+
+    public InfoLevel? GetLevelInfo(int characterIndex, int level)
+    {
+        int customKey = characterIndex * 1000 + level;
+        int globalKey = level;
+
+        Console.WriteLine($"customKey: {customKey}");
+        Console.WriteLine($"globalKey: {globalKey}");
+
+        return GetInfoDataByIndex<InfoLevel>(customKey) ?? 
+            GetInfoDataByIndex<InfoLevel>(globalKey);
     }
 
 }

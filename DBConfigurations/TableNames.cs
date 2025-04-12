@@ -31,5 +31,7 @@ public static class TableNames
     public static readonly string InfoDailyMission = "info_daily_mission";
 
     public static readonly string InfoDefine = "info_define";
+
+    public static readonly string InfoLevels = "info_Levels";
 }
 

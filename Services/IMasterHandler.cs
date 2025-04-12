@@ -1,4 +1,6 @@
-﻿namespace chrispserver.Services;
+﻿using static chrispserver.DbEntity.InfoEntities;
+
+namespace chrispserver.Services;
 
 public interface IMasterHandler
 {
@@ -11,4 +13,6 @@ public interface IMasterHandler
     List<T>? GetAll<T>() where T : class;
 
     Task LoadAllAsync();
+
+    InfoLevel? GetLevelInfo(int characterIndex, int level);
 }
