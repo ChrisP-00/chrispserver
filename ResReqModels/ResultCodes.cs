@@ -46,26 +46,38 @@ public enum ResultCodes
     [Description("해당 유저를 찾을 수 없음")]
     Login_Fail_NotUser = -2501,
     [Description("로그인 중 오류 발생")]
-    Login_Fail_Exception = -2999,        
+    Login_Fail_Exception = -2999,
 
-    // 재화 사용 오류 -3000 ~ -3999
+    // 캐릭터 상태 업데이트 오류 -3000 ~ -3499
+    [Description("캐릭터 상태 업데이트 오류")]
+    PlayStatus_Fail_Exception = -3499,
+
+    // 재화 사용 오류 -3500 ~ -3999
     [Description("보유한 재화 수량이 부족함")]
-    Goods_Fail_NotEnough = -3001,  
+    Goods_Fail_NotEnough = -3501,  
     [Description("사용자가 보유한 재화가 없음")]
-    Goods_Fail_NotExist = -3002,  
+    Goods_Fail_NotExist = -3502,  
     [Description("사용할 수 없는 재화")]
-    Goods_Fail_NotValidType = -3003,
+    Goods_Fail_NotValidType = -3503,
     [Description("보유한 재화 수량이 부족함")]
-    Goods_Fail_LessThanZero = -3004,
+    Goods_Fail_LessThanZero = -3504,
     [Description("밥주기 중 오류 발생")]
-    Goods_Fail_Exception = -3999,          
+    Goods_Fail_Exception = -3999,
 
+
+
+    // 경험치 오류 -4000 ~ -4999
+    [Description("존재하지 않는 캐릭터")]
+    EXP_Fail_CharacterNotExist = 4009,
+    EXP_Fail_Exception = 4999,
 
     // 미션 오류 -5000 ~ -5999
     [Description("현재 미션을 수행 할 수 없음")]
     Mission_Fail_NotAvailable = -5001,    
     [Description("이미 수행한 미션")]
     Mission_Fail_AlreadyCompleted = -5002,
+    [Description("이미 수행한 미션")]
+    Mission_Fail_NoMission = 5003,
     [Description("미션 알 수 없는 오류")]
     Mission_Fail_Exception = -5999,
 

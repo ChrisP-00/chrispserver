@@ -1,6 +1,8 @@
 ﻿
 using chrispserver.DbConfigurations;
 using chrispserver.ResReqModels;
+using MySqlConnector;
+using SqlKata;
 using SqlKata.Execution;
 using static chrispserver.DbEntity.InfoEntities;
 using static chrispserver.DbEntity.UserEntities;
@@ -14,7 +16,12 @@ public class AccountService : IAccount
 {
     private readonly ConnectionManager _connectionManager;
     private readonly IMasterHandler _masterHandler;
-    private  QueryFactory _gameDb => _connectionManager.GetSqlQueryFactory(DbKeys.GameServerDB);
+    private QueryFactory _gameDb => _connectionManager.GetSqlQueryFactory(DbKeys.GameServerDB);
+
+    private const int NicknameDefineIndex = 4;
+    private const int DefaultFoodIndex = 1;
+    private const int DefaultToyIndex = 2;
+    private const int DefaultPointIndex = 3;
 
     public AccountService(ConnectionManager connectionManager, IMasterHandler masterHandler)
     {
@@ -24,13 +31,14 @@ public class AccountService : IAccount
 
     public async Task<Result> CreateAccountAsync(Req_CreateAccount requestBody)
     {
-        try
+        return await _connectionManager.ExecuteInTransactionAsync(DbKeys.GameServerDB, async (db, transaction) =>
         {
-            using var gameDb = _gameDb;
+            var (result, userAccount) = await ValidateLoginUserAsync(requestBody, db, transaction);
 
-            UserAccount userAccount = await gameDb.Query(TableNames.UserAccount)
-            .Where(DbColumns.MemberId, requestBody.MemberId)
-            .FirstOrDefaultAsync<UserAccount>();
+            if (result.ResultCodes != ResultCodes.Ok)
+            {
+                return result;
+            }
 
             if (userAccount != null && !userAccount.Is_Deleted)
             {
@@ -38,146 +46,111 @@ public class AccountService : IAccount
                 return Result.Fail(ResultCodes.Create_Account_Fail_Duplicate);
             }
 
-            // 해당 맴버 id 로 밴 당한지 확인 필요 
-            if (userAccount != null && userAccount.Is_Banned)
-            {
-                Console.WriteLine($"[Account] 계정 생성 실패 : 요청한 계정 정지 상태");
-                return Result.Fail(ResultCodes.Ban_Account);
-            }
-
-            // 계정 삭제 유무 (계정이 있고 & 삭제 상태) => 삭제한 계정
-            if (userAccount != null && userAccount.Is_Deleted)
-            {
-                Console.WriteLine($"[Account] 계정 생성 실패 : 요청한 계정 삭제 상태");
-                return Result.Fail(ResultCodes.Create_Account_Fail_Duplicate);
-            }
-
             // define에서 가져오기
-            InfoDefine? infoDefine = _masterHandler.GetInfoDataByIndex<InfoDefine>(4);
+            InfoDefine? infoDefine = _masterHandler.GetInfoDataByIndex<InfoDefine>(NicknameDefineIndex);
             string? rawNickname = infoDefine?.Description;
 
             string defaultNickname = string.IsNullOrWhiteSpace(rawNickname) ? "졸리" : rawNickname;
 
-
-            var result = await _connectionManager.ExecuteInTransactionAsync(DbKeys.GameServerDB, async (db, transaction) =>
+            // 1. UserAccount 생성
+            int index = await db.Query(TableNames.UserAccount).InsertGetIdAsync<int>(new
             {
-                // 1. UserAccount 생성
-                int index = await db.Query(TableNames.UserAccount).InsertGetIdAsync<int>(new
-                {
-                    Member_id = requestBody.MemberId,
-                    Unity_device_number = requestBody.UnityDeviceNumber,
-                    Nickname = string.IsNullOrWhiteSpace(requestBody.Nickname)
-                                    ? defaultNickname
-                                    : requestBody.Nickname
-                }, transaction: transaction);
+                Member_id = requestBody.MemberId,
+                Unity_device_number = requestBody.UnityDeviceNumber,
+                Nickname = string.IsNullOrWhiteSpace(requestBody.Nickname)
+                                ? defaultNickname
+                                : requestBody.Nickname
+            }, transaction: transaction);
 
-                Console.WriteLine($"user index : {index} ");
+            Console.WriteLine($"user index : {index} ");
 
-                if (index <= 0)
+            if (index <= 0)
+            {
+                throw new Exception("[CreateAccount] UserAccount 생성 실패: 반환된 index가 0 이하입니다.");
+            }
+
+            // 2. UserCharacter 생성
+            int inserted = await db.Query(TableNames.UserCharacter).InsertAsync(new
+            {
+                user_index = index,
+                character_index = 1     // 마스터 디비에서 가져오기 혹은 define에서 가져오기
+            }, transaction: transaction);
+
+            if (inserted <= 0)
+            {
+                throw new Exception("[CreateAccount] UserCharacter 삽입 실패");
+            }
+
+            // define에서 가져오기
+            int defaultFood = _masterHandler.GetDefaultValueOrDefault(DefaultFoodIndex, 5, "Food");
+            int defaultToy = _masterHandler.GetDefaultValueOrDefault(DefaultToyIndex, 5, "Toy");
+            int defaultPoint = _masterHandler.GetDefaultValueOrDefault(DefaultPointIndex, 0, "Point");
+
+            // 3. UserGoods 여러 개 생성
+            var userGoodsList = new[]
+            {
+                new { user_index = index, goods_index = 1, quantity = defaultFood },
+                new { user_index = index, goods_index = 2, quantity = defaultToy },
+                new { user_index = index, goods_index = 3, quantity = defaultPoint }
+            };
+
+            foreach (var goods in userGoodsList)
+            {
+                int goodsInsert = await db.Query(TableNames.UserGoods).InsertAsync(goods, transaction: transaction);
+
+                if (goodsInsert <= 0)
                 {
-                    throw new Exception("[CreateAccount] UserAccount 생성 실패: 반환된 index가 0 이하입니다.");
+                    throw new Exception($"[CreateAccount] UserGoods 삽입 실패 - goods_index: {goods.goods_index}");
                 }
+            }
 
-                // 2. UserCharacter 생성
-                int inserted = await db.Query(TableNames.UserCharacter).InsertAsync(new
+            Console.WriteLine($"[Check] MasterHandler 해시: {_masterHandler.GetHashCode()}");
+
+            // 4. 일일 미션 넣어주기
+            List<InfoDailyMission>? missions = _masterHandler.GetAll<InfoDailyMission>();
+            if (missions == null || missions.Count == 0)
+            {
+                throw new Exception($"[CreateAccount] 마스터 데이터에 일일 미션 없음");
+            }
+
+            foreach (var mission in missions)
+            {
+                int missionInsert = await db.Query(TableNames.UserDailyMission).InsertAsync(new
                 {
                     user_index = index,
-                    character_index = 1     // 마스터 디비에서 가져오기 혹은 define에서 가져오기
+                    daily_mission_index = mission.Daily_Mission_Index,
+                    goods_type = mission.Goods_Type,
+                    goods_index = mission.Goods_Index,
+                    mission_goal_count = mission.Mission_Goal_Count,
                 }, transaction: transaction);
 
-                if (inserted <= 0)
+                if (missionInsert <= 0)
                 {
-                    throw new Exception("[CreateAccount] UserCharacter 삽입 실패");
+                    throw new Exception($"[DailyMission] DailyMission 삽입 실패 - daily_mission_index: {mission.Daily_Mission_Index}");
                 }
+            }
 
-                // define에서 가져오기
-
-                int defaultFood = _masterHandler.GetDefaultValueOrDefault(1, 5, "Food");
-                int defaultToy = _masterHandler.GetDefaultValueOrDefault(2, 5, "Toy");
-                int defaultPoint = _masterHandler.GetDefaultValueOrDefault(3, 0, "Point");
-
-                // 3. UserGoods 여러 개 생성
-                var userGoodsList = new[]
-                {
-                    new { user_index = index, goods_index = 1, quantity = defaultFood },
-                    new { user_index = index, goods_index = 2, quantity = defaultToy },
-                    new { user_index = index, goods_index = 3, quantity = defaultPoint }
-                };
-
-                foreach (var goods in userGoodsList)
-                {
-                    int goodsInsert = await db.Query(TableNames.UserGoods).InsertAsync(goods, transaction: transaction);
-
-                    if (goodsInsert <= 0)
-                    {
-                        throw new Exception($"[CreateAccount] UserGoods 삽입 실패 - goods_index: {goods.goods_index}");
-                    }
-                }
-
-                Console.WriteLine($"[Check] MasterHandler 해시: {_masterHandler.GetHashCode()}");
-
-                // 4. 일일 미션 넣어주기
-                List<InfoDailyMission>? missions = _masterHandler.GetAll<InfoDailyMission>();
-                if (missions == null || missions.Count == 0)
-                {
-                    throw new Exception($"[CreateAccount] 마스터 데이터에 일일 미션 없음");
-                }
-
-                foreach (var mission in missions)
-                {
-                    int missionInsert = await db.Query(TableNames.UserDailyMission).InsertAsync(new
-                    {
-                        user_index = index,
-                        daily_mission_index = mission.Daily_Mission_Index,
-                        goods_type = mission.Goods_Type,
-                        goods_index = mission.Goods_Index,
-                        mission_goal_count = mission.Mission_Goal_Count,
-                    }, transaction: transaction);
-
-                    if (missionInsert <= 0)
-                    {
-                        throw new Exception($"[DailyMission] DailyMission 삽입 실패 - daily_mission_index: {mission.Daily_Mission_Index}");
-                    }
-                }
-            });
-
-            return result;
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[Transaction] 계정 생성 오류 : {ex.ToString()}");
-            return Result.Fail(ResultCodes.Create_Account_Fail_Exception);
-        }
+            return Result.Success();
+        });
     }
+
 
     public async Task<Result<Res_Login>> LoginAsync(Req_Login requestBody)
     {
         try
         {
             using var gameDb = _gameDb;
+            var (result, userAccount) = await ValidateLoginUserAsync(requestBody, gameDb);
 
-            User_Account userAccount = await gameDb.Query(TableNames.UserAccount)
-            .Where(DbColumns.MemberId, requestBody.MemberId)
-            .FirstOrDefaultAsync<User_Account>();
-
-            if (userAccount == null)
+            if (result.ResultCodes != ResultCodes.Ok || userAccount == null)
             {
-                Console.WriteLine($"[Account] 로그인 실패 : 요청한 계정이 없음");
-                return Result<Res_Login>.Fail(ResultCodes.Login_Fail_NotUser);
-            }
+                if (userAccount == null)
+                {
+                    Console.WriteLine($"[Account] 로그인 실패 : 요청한 계정이 없음");
+                    return Result<Res_Login>.Fail(result.ResultCodes);
+                }
 
-            // 해당 맴버 id 로 밴 당한지 확인 필요 
-            if (userAccount != null && userAccount.Is_Banned)
-            {
-                Console.WriteLine($"[Account] 로그인 실패 : 요청한 계정 정지 상태");
-                return Result<Res_Login>.Fail(ResultCodes.Ban_Account);
-            }
-
-            // 계정 삭제 유무 (계정이 있고 & 삭제됨) => 삭제된 계정
-            if (userAccount != null && userAccount.Is_Deleted)
-            {
-                Console.WriteLine($"[Account] 로그인 실패 : 요청한 계정 삭제 상태");
-                return Result<Res_Login>.Fail(ResultCodes.Deleted_Account);
+                return Result<Res_Login>.Fail(result.ResultCodes);
             }
 
             int userIndex = userAccount.User_Index;
@@ -299,5 +272,38 @@ public class AccountService : IAccount
             Console.WriteLine($"[Account] 로그인 실패 : {ex.ToString()}");
             return Result<Res_Login>.Fail(ResultCodes.Login_Fail_Exception);
         }
+    }
+
+    private async Task<(Result result, User_Account? Account)> ValidateLoginUserAsync<T>(T requestBody, QueryFactory db, MySqlTransaction? transaction = null) where T : IMemberId
+    {
+        var query = db.Query(TableNames.UserAccount)
+        .Where(DbColumns.MemberId, requestBody.MemberId);
+
+        User_Account userAccount;
+
+        if (transaction != null)
+        {
+            userAccount = await query.FirstOrDefaultAsync<User_Account>(transaction);
+        }
+        else
+        {
+            userAccount = await query.FirstOrDefaultAsync<User_Account>();
+        }
+
+        // 해당 맴버 id 로 밴 당한지 확인 필요 
+        if (userAccount != null && userAccount.Is_Banned)
+        {
+            Console.WriteLine($"[Account] 로그인 실패 : 요청한 계정 정지 상태");
+            return (Result.Fail(ResultCodes.Ban_Account), null);
+        }
+
+        // 계정 삭제 유무 (계정이 있고 & 삭제됨) => 삭제된 계정
+        if (userAccount != null && userAccount.Is_Deleted)
+        {
+            Console.WriteLine($"[Account] 로그인 실패 : 요청한 계정 삭제 상태");
+            return (Result.Fail(ResultCodes.Deleted_Account), null);
+        }
+
+        return (Result.Success(), userAccount);
     }
 }

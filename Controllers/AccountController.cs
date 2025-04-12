@@ -21,7 +21,7 @@ public class AccountController : ControllerBase
     /// <summary>
     /// 회원가입 요청
     /// </summary>
-    [HttpPost("Create-Account")]
+    [HttpPost("CreateAccount")]
     public async Task<Result> CreateAccountAsync([FromBody] Req_CreateAccount requestBody)
     {
         Console.WriteLine(">>>>>>>>>>>>>>>> [CreateAccount Request] " + JsonSerializer.Serialize(requestBody));
@@ -37,4 +37,10 @@ public class AccountController : ControllerBase
         Console.WriteLine(">>>>>>>>>>>>>>>> [Login Request] " + JsonSerializer.Serialize(requestBody));
         return await _account.LoginAsync(requestBody);
     }
+
+
+    /// <summary>
+    /// 로그 아웃 만들기 
+    /// </summary>
+   // [HttpPost("Login")]
 }

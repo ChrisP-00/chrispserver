@@ -60,7 +60,7 @@ public class ConnectionManager : IDisposable
     /// <summary>
     /// 주어진 데이터베이스에서 트랜잭션 실행
     /// </summary>
-    public async Task<Result> ExecuteInTransactionAsync(string dbName, Func<QueryFactory, MySqlTransaction, Task> action)
+    public async Task<Result> ExecuteInTransactionAsync(string dbName, Func<QueryFactory, MySqlTransaction, Task<Result>> action)
     {
         if (!_connectionStrings.TryGetValue(dbName, out var connectionString) || string.IsNullOrEmpty(connectionString))
         {
@@ -74,21 +74,69 @@ public class ConnectionManager : IDisposable
         await using var transaction = await connection.BeginTransactionAsync();
         // 트랜잭션을 명시적으로 지정함!
         var queryFactory = new QueryFactory(connection, new MySqlCompiler());
+
         try
         {
-            await action(queryFactory, (MySqlTransaction)transaction);
+            var result = await action(queryFactory, (MySqlTransaction)transaction);
+
+            if (result.ResultCodes != ResultCodes.Ok)
+            {
+                await transaction.RollbackAsync();
+                Console.WriteLine($"[Transaction] 롤백됨 (Result.Fail 반환): {dbName}");
+                return result;
+            }
+
             await transaction.CommitAsync();
             Console.WriteLine($"[Transaction] 커밋 완료: {dbName}");
             return Result.Success();
         }
-        catch(Exception ex) 
+        catch (Exception ex)
         {
             await transaction.RollbackAsync();
-            Console.WriteLine($"[Transaction] 롤백됨: {dbName}");
+            Console.WriteLine($"[Transaction] 롤백됨 (예외): {dbName}");
 
             Console.WriteLine($"ConnextionManager Error : {ex.Message}");
 
             return Result.Fail(ResultCodes.Transaction_Fail_Rollback);
+        }
+    }
+
+    public async Task<Result<T>> ExecuteInTransactionAsync<T>(string dbName, Func<QueryFactory, MySqlTransaction, Task<Result<T>>> action)
+    {
+        if (!_connectionStrings.TryGetValue(dbName, out var connectionString) || string.IsNullOrEmpty(connectionString))
+        {
+            return Result<T>.Fail(ResultCodes.Transaction_Fail_ConnectionStringNull);
+        }
+
+        await using var connection = new MySqlConnection(connectionString);
+        await connection.OpenAsync();
+        Console.WriteLine($"[Transaction<T>] 연결 열림: {dbName} (트랜잭션 시작)");
+
+        await using var transaction = await connection.BeginTransactionAsync();
+        var queryFactory = new QueryFactory(connection, new MySqlCompiler());
+
+        try
+        {
+            var result = await action(queryFactory, (MySqlTransaction)transaction);
+
+            if (result.ResultCodes != ResultCodes.Ok)
+            {
+                await transaction.RollbackAsync();
+                Console.WriteLine($"[Transaction<T>] 롤백됨 (Result.Fail 반환): {dbName}");
+                return result;
+            }
+
+            await transaction.CommitAsync();
+            Console.WriteLine($"[Transaction<T>] 커밋 완료: {dbName}");
+            return result;
+        }
+        catch (Exception ex)
+        {
+            await transaction.RollbackAsync();
+            Console.WriteLine($"[Transaction<T>] 롤백됨 (예외): {dbName}");
+            Console.WriteLine($"[Error] {ex.Message}");
+
+            return Result<T>.Fail(ResultCodes.Transaction_Fail_Rollback);
         }
     }
 

@@ -22,10 +22,10 @@ public class RewardController : ControllerBase
     }
 
 
-    [HttpPost("Receive-Mission")]
+    [HttpPost("ReceiveMission")]
     public async Task<Result> ReceiveMissionAsync([FromBody] Req_ReceiveMission requestBody)
     {
-        InfoDailyMission infoDailyMission = _masterHandler.GetInfoDataByIndex<InfoDailyMission>(requestBody.DailyMissionIndex);
+        InfoDailyMission? infoDailyMission = _masterHandler.GetInfoDataByIndex<InfoDailyMission>(requestBody.DailyMissionIndex);
         if (infoDailyMission == null)
         {
             Console.WriteLine($"Db에 존재하지 않는 아이템 인덱스 : {requestBody.DailyMissionIndex}");

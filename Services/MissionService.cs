@@ -1,6 +1,9 @@
 ﻿using chrispserver.DbConfigurations;
 using chrispserver.ResReqModels;
+using MySqlConnector;
 using SqlKata.Execution;
+using System;
+using System.Transactions;
 using static chrispserver.DbEntity.InfoEntities;
 using static chrispserver.ResReqModels.Request;
 
@@ -16,78 +19,64 @@ public class MissionService : IMission
         _connectionManager = connectionManager;
     }
 
-    public async Task<Result> UpdateMissionProcessAsync(int userIndex, int goodsIndex, int quantity)
+    public async Task<Result> UpdateMissionProcessAsync(Req_PlayStatus requestBody, QueryFactory db, MySqlTransaction transaction)
     {
-        try
+        var hasDailyMissions = await db.Query(TableNames.UserDailyMission)
+                    .Where(DbColumns.UserIndex, requestBody.UserIndex)
+                    .ExistsAsync(transaction);
+
+        if (!hasDailyMissions)
         {
-            using var gameDb = _gameDb;
-
-            var hasDailyMissions = await gameDb.Query(TableNames.UserDailyMission)
-                    .Where(DbColumns.UserIndex, userIndex)
-                    .ExistsAsync();
-
-            if (!hasDailyMissions)
-            {
-                Console.WriteLine("[Mission] 미션 진행도 업데이트 실패 : 유저가 일일 미션이 없음.");
-                return Result.Fail(ResultCodes.Mission_Fail_Exception);
-            }
-
-            var userDailyMissions = await gameDb.Query(TableNames.UserDailyMission)
-                            .Where(DbColumns.UserIndex, userIndex)
-                            .Where(DbColumns.GoodsIndex, goodsIndex)
-                            .WhereRaw($"{DbColumns.Mission_progress} < {DbColumns.Mission_Goal_Count}")
-                            .IncrementAsync(DbColumns.Mission_progress, quantity);
-
-            return Result.Success();
+            Console.WriteLine("[Mission] 미션 진행도 업데이트 실패 : 유저가 일일 미션이 없음.");
+            return Result.Fail(ResultCodes.Mission_Fail_NoMission);
         }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[Mission] 미션 진행도 업데이트 실패 : {ex.ToString()}");
-            return Result.Fail(ResultCodes.Mission_Fail_Exception);
-        }
+
+        var userDailyMissions = await db.Query(TableNames.UserDailyMission)
+                        .Where(DbColumns.UserIndex, requestBody.UserIndex)
+                        .Where(DbColumns.GoodsIndex, requestBody.GoodsIndex)
+                        .WhereRaw($"{DbColumns.Mission_progress} < {DbColumns.Mission_Goal_Count}")
+                        .IncrementAsync(DbColumns.Mission_progress, requestBody.Quantity);
+
+        return Result.Success();
     }
 
+
+    // 미션 수령은 따로 처리! 
     public async Task<Result> ReceiveMissionRewardAsync(Req_ReceiveMission requestBody, InfoDailyMission infoDailyMission)
     {
-        try
-        {
-            var result = await _connectionManager.ExecuteInTransactionAsync(DbKeys.GameServerDB, async (db, transaction) =>
-            {
-                var userDailyMission = await db.Query(TableNames.UserDailyMission)
-                          .Where(DbColumns.UserIndex, requestBody.UserIndex)
-                          .Where(DbColumns.DailyMissionIndex, requestBody.DailyMissionIndex)
-                          .WhereRaw($"{DbColumns.Mission_progress} = {DbColumns.Mission_Goal_Count}")
-                          .UpdateAsync(new
-                          {
-                              is_received = true,
-                              updated_at = DateTime.Now,
-                          }, transaction : transaction);
+        return await _connectionManager.ExecuteInTransactionAsync(DbKeys.GameServerDB, async (db, transaction) =>
+         {
+             var userDailyMission = await db.Query(TableNames.UserDailyMission)
+                       .Where(DbColumns.UserIndex, requestBody.UserIndex)
+                       .Where(DbColumns.DailyMissionIndex, requestBody.DailyMissionIndex)
+                       .WhereRaw($"{DbColumns.Mission_progress} = {DbColumns.Mission_Goal_Count}")
+                       .UpdateAsync(new
+                       {
+                           is_received = true,
+                           updated_at = DateTime.Now,
+                       }, transaction: transaction);
 
-                if (userDailyMission == 0)
-                {
-                    throw new Exception("[Mission] 미션 리워드 수령 실패 : 완료된 미션 없음");
-                }
+             if (userDailyMission == 0)
+             {
+                 Console.WriteLine("[Mission] 미션 리워드 수령 실패 : 완료된 미션 없음");
+                 return Result.Fail(ResultCodes.Mission_Fail_NoMission);
+             }
 
-                int rewardType = infoDailyMission.Reward_Type;
-                int rewardAmount = infoDailyMission.Reward_Amount;
+             int rewardType = infoDailyMission.Reward_Type;
+             int rewardAmount = infoDailyMission.Reward_Amount;
 
-                var userGoods = await db.Query(TableNames.UserGoods)
-                            .Where(DbColumns.UserIndex, requestBody.UserIndex)
-                            .Where(DbColumns.GoodsIndex, rewardType)
-                            .IncrementAsync(DbColumns.Quantity, rewardAmount, transaction : transaction);
+             var userGoods = await db.Query(TableNames.UserGoods)
+                         .Where(DbColumns.UserIndex, requestBody.UserIndex)
+                         .Where(DbColumns.GoodsIndex, rewardType)
+                         .IncrementAsync(DbColumns.Quantity, rewardAmount, transaction: transaction);
 
-                if (userGoods == 0)
-                {
-                    throw new Exception("[Mission] 미션 리워드 수령 실패 : 리워드 지급 안됌");
-                }
-            });
+             if (userGoods == 0)
+             {
+                 Console.WriteLine("[Mission] 미션 리워드 수령 실패 : 리워드 지급 안됌");
+                 return Result.Fail(ResultCodes.Mission_Fail_NotAvailable);
+             }
 
-            return result;
-        }
-        catch (Exception ex) 
-        {
-            Console.WriteLine($"[Mission] 미션 리워드 수령 실패 : {ex.Message}");
-            return Result.Fail(ResultCodes.Mission_Fail_Exception);
-        }
+             return Result.Success();
+         });
     }
 }
