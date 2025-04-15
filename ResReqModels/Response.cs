@@ -6,6 +6,7 @@ public class Response
     #region 계정 관련 모델
     public class Res_Login
     {
+        public string Token { get; set; } = string.Empty;
         public User_Account? UserAccount { get; set; }
         public List<User_Character>? UserCharacters { get; set; }
         public List<User_Inventory>? UserInventories { get; set; }

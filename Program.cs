@@ -1,10 +1,21 @@
 using chrispserver.DbConfigurations;
+using chrispserver.Middlewares;
+using chrispserver.Securities;
 using chrispserver.Services;
+using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // 의존성 주입
 builder.Services.AddSingleton<ConnectionManager>();
+builder.Services.AddSingleton<IRedisAuthService, RedisAuthService>();
+builder.Services.AddSingleton<IMemoryDb, RedisMemoryDb>();
+builder.Services.AddSingleton<IConnectionMultiplexer>(provider =>
+{
+    var config = provider.GetRequiredService<IConfiguration>();
+    var redisConfig = config.GetConnectionString("Redis") ?? "127.0.0.1:6379";
+    return ConnectionMultiplexer.Connect(redisConfig);
+});
 builder.Services.AddSingleton<IMaster, MasterDBService>();
 builder.Services.AddSingleton<IMasterHandler, MasterHandler>();
 builder.Services.AddTransient<IAccount, AccountService>();
@@ -42,10 +53,14 @@ app.UseHttpsRedirection();
 
 app.UseRouting();
 
+app.UseMiddleware<UserAuthMiddleware>();
 app.UseAuthorization();
 
-// API 컨트롤러 매핑
-app.MapControllers();       // API 요청을 처리할 컨트롤러 등록
+// API 요청을 처리할 컨트롤러 등록
+app.UseEndpoints(endPoints =>
+{
+    endPoints.MapControllers();
+});
 
 app.MapStaticAssets();
 app.MapRazorPages()

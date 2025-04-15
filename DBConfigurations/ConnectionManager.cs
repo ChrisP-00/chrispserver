@@ -79,7 +79,7 @@ public class ConnectionManager : IDisposable
         {
             var result = await action(queryFactory, (MySqlTransaction)transaction);
 
-            if (result.ResultCodes != ResultCodes.Ok)
+            if (result.ResultCode != ResultCodes.Ok)
             {
                 await transaction.RollbackAsync();
                 Console.WriteLine($"[Transaction] 롤백됨 (Result.Fail 반환): {dbName}");
@@ -119,7 +119,7 @@ public class ConnectionManager : IDisposable
         {
             var result = await action(queryFactory, (MySqlTransaction)transaction);
 
-            if (result.ResultCodes != ResultCodes.Ok)
+            if (result.ResultCode != ResultCodes.Ok)
             {
                 await transaction.RollbackAsync();
                 Console.WriteLine($"[Transaction<T>] 롤백됨 (Result.Fail 반환): {dbName}");

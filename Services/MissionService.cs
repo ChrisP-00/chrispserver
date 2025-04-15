@@ -2,8 +2,6 @@
 using chrispserver.ResReqModels;
 using MySqlConnector;
 using SqlKata.Execution;
-using System;
-using System.Transactions;
 using static chrispserver.DbEntity.InfoEntities;
 using static chrispserver.ResReqModels.Request;
 

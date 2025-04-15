@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using System.Text.Json;
 using static chrispserver.ResReqModels.Response;
 using static chrispserver.ResReqModels.Request;
+using chrispserver.Securities;
 
 namespace chrispserver.Controllers;
 
@@ -12,10 +13,12 @@ namespace chrispserver.Controllers;
 public class AccountController : ControllerBase
 {
     private readonly IAccount _account;
+    private readonly IRedisAuthService _redisAuthService;
 
-    public AccountController(IAccount account)
+    public AccountController(IAccount account, IRedisAuthService redisAuthService)
     {
         _account = account;
+        _redisAuthService = redisAuthService;
     }
 
     /// <summary>
@@ -42,5 +45,11 @@ public class AccountController : ControllerBase
     /// <summary>
     /// 로그 아웃 만들기 
     /// </summary>
-   // [HttpPost("Login")]
+    [HttpPost("Logout")]
+    public async Task<Result> LogoutAsync([FromHeader] string token)
+    {
+        token = token.Replace("Bearer ", "").Trim();
+        bool success = await _redisAuthService.RevokeTokenAsync(token);
+        return success ? Result.Success() : Result.Fail(ResultCodes.Logout_Fail_Exception);
+    }
 }

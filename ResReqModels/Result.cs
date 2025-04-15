@@ -3,33 +3,35 @@
 
 public class Result
 {
-    public ResultCodes ResultCodes { get; set; }
+    public ResultCodes ResultCode { get; set; }
     public string? ResultMessage { get; set; }
+    public bool IsSuccess => ResultCode == ResultCodes.Ok;
 
 
-    public Result(ResultCodes resultCodes, string? resultMessage)
+    public Result(ResultCodes resultCode, string? resultMessage)
     {
-        ResultCodes = resultCodes;
+        ResultCode = resultCode;
         ResultMessage = resultMessage;
     }
 
     public static Result Success() => new Result(ResultCodes.Ok,ResultCodes.Ok.ToString());
 
-    public static Result Fail(ResultCodes resultCodes) => new Result(resultCodes, resultCodes.ToString());
+    public static Result Fail(ResultCodes resultCode) => new Result(resultCode, resultCode.ToString());
 
-    public static Result Fail(ResultCodes resultCodes, string resultMessage) => new Result(resultCodes, resultMessage);
+    public static Result Fail(ResultCodes resultCode, string resultMessage) => new Result(resultCode, resultMessage);
 
 }
 
 public class Result<T>
 {
-    public ResultCodes ResultCodes { get; set; }
+    public ResultCodes ResultCode { get; set; }
     public string ResultMessage { get; set; }
     public T? Data { get; set; }
+    public bool IsSuccess => ResultCode == ResultCodes.Ok;
 
     public Result(ResultCodes resultCodes, T? data = default)
     {
-        ResultCodes = resultCodes;
+        ResultCode = resultCodes;
         ResultMessage = resultCodes.ToString();
         Data = data;
     }

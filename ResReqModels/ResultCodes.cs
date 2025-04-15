@@ -12,10 +12,22 @@ public enum ResultCodes
     [Description("필수 입력 필드 누락")]
     InputData_MissingRequiredField = 0001,
 
-    // 트렌젝션 오류 -1000 ~ -1100
+    // 트렌젝션 오류 -1000 ~ -1099
     Transaction_Fail_Rollback = -1001,
     Transaction_Fail_ConnectionStringNull = -1002,
 
+    // 미들웨어 오류 -1100 ~ -1199
+    [Description("중복 요청")]
+    AuthTokenFailSetNx = -1101,
+
+    [Description("유효하지 않은 요청")]
+    InValidRequestHttpBody,
+
+    [Description("Auth Token Fail")]
+    AuthTokenFailWrongKeyword,
+
+    [Description("잘못된 Auth Token")]
+    AuthTokenFailWrongAuthToken,
 
     // 계정 오류 -2000 ~ -2499
     [Description("계정이 중복됨")]
@@ -46,7 +58,13 @@ public enum ResultCodes
     [Description("해당 유저를 찾을 수 없음")]
     Login_Fail_NotUser = -2501,
     [Description("로그인 중 오류 발생")]
-    Login_Fail_Exception = -2999,
+    Login_Fail_Exception = -2509,
+
+
+    [Description("로그아웃 중 오류 발생")]
+    Logout_Fail_Exception = -2999,
+
+
 
     // 캐릭터 상태 업데이트 오류 -3000 ~ -3499
     [Description("캐릭터 상태 업데이트 오류")]

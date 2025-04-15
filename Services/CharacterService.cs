@@ -23,7 +23,6 @@ public class CharacterService : ICharacter
     /// ExecuteInTransactionAsync 내부에서 사용 금지
     /// </summary>
     private QueryFactory _gameDb => _connectionManager.GetSqlQueryFactory(DbKeys.GameServerDB);
-
     public CharacterService(ConnectionManager connectionManager, IMission mission, IMasterHandler masterHandler)
     {
         _connectionManager = connectionManager;
@@ -304,14 +303,14 @@ public class CharacterService : ICharacter
         {
             // 1. 재화 소모
             var useGoodsResult = await UseGoodsAsync(requestBody, db, transaction);
-            if (useGoodsResult.ResultCodes != ResultCodes.Ok)
+            if (useGoodsResult.ResultCode != ResultCodes.Ok)
             {
                 return useGoodsResult;
             }
 
             // 2. 미션 업데이트
             var missionResult = await _mission.UpdateMissionProcessAsync(requestBody, db, transaction);
-            if (missionResult.ResultCodes != ResultCodes.Ok)
+            if (missionResult.ResultCode != ResultCodes.Ok)
             {
                 return missionResult;
             }

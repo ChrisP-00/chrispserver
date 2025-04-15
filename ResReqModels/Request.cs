@@ -20,7 +20,7 @@ public class Request
     public class Req_UserAuth : IUserAuth
     {
         public int UserIndex { get; set; }
-        //public int UserToken { get; set; }
+        public int UserToken { get; set; }
     }
 
 
