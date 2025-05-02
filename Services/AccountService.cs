@@ -7,10 +7,12 @@ using SqlKata;
 using SqlKata.Execution;
 using System;
 using System.Collections.Specialized;
+using System.Reflection.Metadata.Ecma335;
 using static chrispserver.DbEntity.InfoEntities;
 using static chrispserver.DbEntity.UserEntities;
 using static chrispserver.ResReqModels.Request;
 using static chrispserver.ResReqModels.Response;
+using static Humanizer.In;
 
 
 namespace chrispserver.Services;
@@ -37,15 +39,66 @@ public class AccountService : IAccount
 
     public async Task<Result<Res_Login>> LoginOrCreateAccountAsync(Req_Login requestBody)
     {
-        Console.WriteLine("LoginOrCreateAccountAsync!");
-
-        var result = await LoginAsync(requestBody);
-
-        if (result.ResultCode != ResultCodes.Ok)
+        // memberId로 계정 로그인
+        var userAccountResult = await LoginAsync(requestBody);
+        Console.WriteLine($"result : {userAccountResult.ResultCode.ToString()}");
+        if(userAccountResult.ResultCode == ResultCodes.Ok)
         {
-            Console.WriteLine("create account!");
-            Console.WriteLine($"{result.ResultCode}");
+            return userAccountResult;
+        }
 
+        // unity device number로 게스트 계정 로그인
+        var guestAccount = await TryGetGuestAccountByDeviceAsync(requestBody.UnityDeviceNumber!);
+
+        Console.WriteLine($"게스트 계정 : {guestAccount.ResultCode.ToString()}");
+
+        if(guestAccount.IsSuccess && guestAccount.Data != null)
+        {
+            var db = _gameDb;
+            
+            if(!string.IsNullOrWhiteSpace(requestBody.MemberId))
+            {
+                Console.WriteLine($"[LoginOrCreate] 기존 게스트 계정에 memberId 등록 : {requestBody.MemberId}");
+
+                var updateData = new Dictionary<string, object?>
+                {
+                    ["Member_id"] = requestBody.MemberId
+                };
+
+                if (!string.IsNullOrWhiteSpace(requestBody.Nickname))
+                {
+                    updateData["Nickname"] = requestBody.Nickname;
+                }
+
+                int updatedRow = await db.Query(TableNames.UserAccount)
+                    .Where(DbColumns.UserIndex, guestAccount.Data.User_Index)
+                    .UpdateAsync(updateData);
+            
+                if(updatedRow > 0)
+                {
+                    guestAccount.Data.Member_Id = requestBody.MemberId;
+                    guestAccount.Data.Nickname = requestBody.Nickname;  
+                }
+            }
+
+            // Redis token 생성
+            string token = await _redisAuthService.GenerateTokenAsync(requestBody.MemberId!);
+
+            var resultData = await BuildResLoginAsync(guestAccount, db, token);
+
+            if (resultData.ResultCode != ResultCodes.Ok)
+            {
+                return Result<Res_Login>.Fail(resultData.ResultCode);
+            }
+
+            return resultData;
+        }
+
+        Console.WriteLine("create account!");
+
+        // 계정이 없으면 계정 생성
+        if (userAccountResult.ResultCode != ResultCodes.Ok && guestAccount.ResultCode != ResultCodes.Ok)
+        {
             Req_CreateAccount req_CreateAccount = new Req_CreateAccount
             {
                 MemberId = requestBody.MemberId,
@@ -53,21 +106,90 @@ public class AccountService : IAccount
                 Nickname = requestBody.Nickname,
             };
 
-            result = await CreateAccountAsync(req_CreateAccount);
+            var createAccountResult = await CreateAccountAsync(req_CreateAccount);
+            if(createAccountResult.ResultCode != ResultCodes.Ok)
+            {
+                return Result<Res_Login>.Fail(createAccountResult.ResultCode);
+            }
+
+            var userAccount = await TryGetGuestAccountByDeviceAsync(requestBody.UnityDeviceNumber!);
+
+            if (userAccount.IsSuccess)
+            {
+                Console.WriteLine($"게스트 계정 생성 : {userAccount.Data.Unity_Device_Number}");
+            }
+            else
+            {
+                Console.WriteLine($"fail : {userAccount.ResultCode.ToString()}");
+                return Result<Res_Login>.Fail(userAccount.ResultCode);
+            }
+
+            // Redis token 생성
+            string token = await _redisAuthService.GenerateTokenAsync(requestBody.MemberId!);
+
+            var gameDb = _gameDb;
+            var resultData = await BuildResLoginAsync(userAccount, gameDb, token);
+
+            if (resultData.ResultCode != ResultCodes.Ok)
+            {
+                return Result<Res_Login>.Fail(resultData.ResultCode);
+            }
+
+            return resultData;
         }
 
-        Console.WriteLine($"finished : {result.ResultCode}");
-
-        return result;
+        return Result<Res_Login>.Fail(ResultCodes.Create_Account_Fail_Exception);
     }
 
 
-    public async Task<Result<Res_Login>> CreateAccountAsync(Req_CreateAccount requestBody)
+
+
+    public async Task<Result<Res_Login>> LoginAsync(Req_Login requestBody)
+    {
+        try
+        {
+            // Redis token 생성
+            string token = await _redisAuthService.GenerateTokenAsync(requestBody.MemberId!);
+
+            var gameDb = _gameDb;
+            var resultData = await TryGetUserAccountByMemberIdAsync(requestBody.MemberId!, gameDb);         
+
+            if (resultData.ResultCode != ResultCodes.Ok)
+            {
+                Console.WriteLine("Login Fail");
+                return Result<Res_Login>.Fail(resultData.ResultCode);
+            }
+
+            // 마지막 로그인 시간 변경 
+            await gameDb.Query(TableNames.UserAccount)
+                .Where("user_index", resultData.Data!.User_Index)
+                .UpdateAsync(new
+                {
+                    Last_Login_At = DateTime.Now
+                });
+
+            var userAccount = await BuildResLoginAsync(resultData, gameDb, token);
+
+            return Result<Res_Login>.Success(userAccount.Data!);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Account] 로그인 실패 : {ex.ToString()}");
+            return Result<Res_Login>.Fail(ResultCodes.Login_Fail_Exception);
+        }
+    }
+
+
+    #region 내부 함수 정의
+
+    private async Task<Result> CreateAccountAsync(Req_CreateAccount requestBody)
     {
         var transactionResult = await _connectionManager.ExecuteInTransactionAsync(DbKeys.GameServerDB, async (db, transaction) =>
         {
             // define에서 가져오기
             string nickName = GetDefaultNickname(requestBody);
+
+            Console.WriteLine($"닉네임 : {nickName}");
 
             // 1. UserAccount 생성
             int userIndex = await CreateUserAccountAsync(requestBody, nickName, db, transaction);
@@ -95,69 +217,26 @@ public class AccountService : IAccount
             return Result.Success();
         });
 
-        if(transactionResult.ResultCode != ResultCodes.Ok)
+        if (transactionResult.ResultCode != ResultCodes.Ok)
         {
-            return Result<Res_Login>.Fail(transactionResult.ResultCode);
-        }
-        
-        // Redis token 생성
-        string token = await _redisAuthService.GenerateTokenAsync(requestBody.MemberId!);
-
-        var gameDb = _gameDb;
-        var resultData = await BuildResLoginAsync(requestBody.MemberId!, gameDb, token);
-
-        if (resultData.ResultCode != ResultCodes.Ok)
-        {
-            return Result<Res_Login>.Fail(resultData.ResultCode);
+            return Result.Fail(transactionResult.ResultCode);
         }
 
-        return Result<Res_Login>.Success(resultData.Data!);
+        return Result.Success();
     }
 
-
-    public async Task<Result<Res_Login>> LoginAsync(Req_Login requestBody)
+    private async Task<Result<User_Account>> TryGetUserAccountByMemberIdAsync(string memberId, QueryFactory db)
     {
-        try
+        if(string.IsNullOrWhiteSpace(memberId))
         {
-            // Redis token 생성
-            string token = await _redisAuthService.GenerateTokenAsync(requestBody.MemberId!);
-
-            var gameDb = _gameDb;
-            var resultData = await BuildResLoginAsync(requestBody.MemberId!, gameDb, token);
-
-            if (resultData.ResultCode != ResultCodes.Ok)
-            {
-                return Result<Res_Login>.Fail(resultData.ResultCode);
-            }
-
-            // 마지막 로그인 시간 변경 
-            await gameDb.Query(TableNames.UserAccount)
-                .Where("user_index", resultData.Data!.UserAccount!.User_Index)
-                .UpdateAsync(new
-                {
-                    Last_Login_At = DateTime.Now
-                });
-
-            return Result<Res_Login>.Success(resultData.Data);
+            return Result<User_Account>.Fail(ResultCodes.No_MemberId);
         }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[Account] 로그인 실패 : {ex.ToString()}");
-            return Result<Res_Login>.Fail(ResultCodes.Login_Fail_Exception);
-        }
-    }
 
-
-    #region 내부 함수 정의
-    private async Task<Result<User_Account>> TryGetUserAccountAsync(string memberId, QueryFactory db, MySqlTransaction? transaction = null)
-    {
         var query = db.Query(TableNames.UserAccount)
                   .Where(DbColumns.MemberId, memberId);
 
-        var dbUserAccount = transaction != null ?
-            await query.FirstOrDefaultAsync<UserAccount>(transaction) :
-            await query.FirstOrDefaultAsync<UserAccount>();
-
+        var dbUserAccount = await query.FirstOrDefaultAsync<UserAccount>();
+         
         if (dbUserAccount == null)
         {
             Console.WriteLine($"[Account] 로그인 실패 : 요청한 계정을 찾을 수 없음");
@@ -181,6 +260,8 @@ public class AccountService : IAccount
         var userAccount = new User_Account
         {
             User_Index = dbUserAccount!.User_Index,
+            Member_Id = dbUserAccount.Member_id,
+            Unity_Device_Number = dbUserAccount.Unity_device_number,
             Nickname = dbUserAccount.Nickname,
             Is_Banned = dbUserAccount.Is_Banned,
             Is_Deleted = dbUserAccount.Is_Deleted,
@@ -190,93 +271,39 @@ public class AccountService : IAccount
         return Result<User_Account>.Success(userAccount);
     }
 
-    private string GetDefaultNickname(Req_CreateAccount requestBody)
+    private async Task<Result<User_Account>> TryGetGuestAccountByDeviceAsync(string unityDeviceNumber)
     {
-        var define = _masterHandler.GetInfoDataByIndex<InfoDefine>(NicknameDefineIndex);
-        return string.IsNullOrWhiteSpace(requestBody.Nickname) ? define?.Description ?? "졸리" : requestBody.Nickname;
-    }
+        var gameDb = _gameDb;
 
-    private async Task<int> CreateUserAccountAsync(Req_CreateAccount requestBody, string nickName, QueryFactory db, MySqlTransaction transaction)
-    {
-        return await db.Query(TableNames.UserAccount).InsertGetIdAsync<int>(new
+        var query = gameDb.Query(TableNames.UserAccount)
+          .Where(DbColumns.Unity_Device_Number, unityDeviceNumber)
+          .WhereNull(DbColumns.MemberId);
+
+        var dbUserAccount = await query.FirstOrDefaultAsync<UserAccount>();
+
+        if(dbUserAccount == null)
         {
-            Member_id = requestBody.MemberId,
-            Unity_device_number = requestBody.UnityDeviceNumber,
-            Nickname = nickName
-        }, transaction);
-    }
+            Console.WriteLine($"[Account] 게스트 계정 없음 : unity_device_number = {unityDeviceNumber}");
+            return Result<User_Account>.Fail(ResultCodes.No_Guest_Account);
+        }
 
-    private async Task<int> CreateDefaultCharacterAsync(int userIndex, QueryFactory db, MySqlTransaction transaction)
-    {
-        return await db.Query(TableNames.UserCharacter).InsertAsync(new
+        var userAccount = new User_Account
         {
-            user_index = userIndex,
-            character_index = 1
-        }, transaction);
-    }
-
-    private async Task CreateInitialGoodsAsync(int userIndex, QueryFactory db, MySqlTransaction transaction)
-    {
-        int food = _masterHandler.GetDefaultValueOrDefault(DefaultFoodIndex, 5, "Food");
-        int toy = _masterHandler.GetDefaultValueOrDefault(DefaultToyIndex, 5, "Toy");
-        int point = _masterHandler.GetDefaultValueOrDefault(DefaultPointIndex, 0, "Point");
-
-        var goodsList = new[] {
-            new { user_index = userIndex, goods_index = 1, quantity = food },
-            new { user_index = userIndex, goods_index = 2, quantity = toy },
-            new { user_index = userIndex, goods_index = 3, quantity = point }
+            User_Index = dbUserAccount!.User_Index,
+            Member_Id = dbUserAccount.Member_id,
+            Unity_Device_Number = dbUserAccount.Unity_device_number,
+            Nickname = dbUserAccount.Nickname,
+            Is_Banned = dbUserAccount.Is_Banned,
+            Is_Deleted = dbUserAccount.Is_Deleted,
+            Last_Login_At = dbUserAccount.Last_Login_At,
         };
 
-        foreach (var goods in goodsList)
-        {
-            int goodsInserted = await db.Query(TableNames.UserGoods).InsertAsync(goods, transaction: transaction);
-
-            if (goodsInserted <= 0)
-            {
-                throw new Exception($"[CreateAccount] UserGoods 삽입 실패 - goods_index: {goods.goods_index}");
-            }
-        }
+        return Result<User_Account>.Success(userAccount);
     }
 
-    private async Task CreateUserMissionsAsync(int userIndex, QueryFactory db, MySqlTransaction transaction)
+    private async Task<Result<Res_Login>> BuildResLoginAsync(Result<User_Account> userAccount, QueryFactory db, string token)
     {
-        List<InfoDailyMission>? missions = _masterHandler.GetAll<InfoDailyMission>();
-        if (missions == null || missions.Count == 0)
-        {
-            throw new Exception($"[CreateAccount] 마스터 데이터에 일일 미션 없음");
-        }
-
-        foreach (var mission in missions)
-        {
-            int missionInsert = await db.Query(TableNames.UserDailyMission).InsertAsync(new
-            {
-                user_index = userIndex,
-                daily_mission_index = mission.Daily_Mission_Index,
-                goods_type = mission.Goods_Type,
-                goods_index = mission.Goods_Index,
-                mission_goal_count = mission.Mission_Goal_Count,
-            }, transaction: transaction);
-
-            if (missionInsert <= 0)
-            {
-                throw new Exception($"[DailyMission] DailyMission 삽입 실패 - daily_mission_index: {mission.Daily_Mission_Index}");
-            }
-        }
-    }
-
-    private async Task<Result<Res_Login>> BuildResLoginAsync(string memberId, QueryFactory db, string token)
-    {
-        var userAccount = await TryGetUserAccountAsync(memberId, _gameDb);
-
-        Console.WriteLine($"Build Res Login : memberID == {memberId}");
-
-        if (!userAccount.IsSuccess || userAccount.Data == null)
-        {
-            Console.WriteLine($"no user!");
-            return Result<Res_Login>.Fail(userAccount.ResultCode);
-        }
-
-        int userIndex = userAccount.Data.User_Index;
+        int userIndex = userAccount.Data!.User_Index;
 
         // 유저 캐릭터 정보
         var userCharacters = await db.Query(TableNames.UserCharacter)
@@ -368,6 +395,82 @@ public class AccountService : IAccount
         };
 
         return Result<Res_Login>.Success(resLogin);
+    }
+
+    private string GetDefaultNickname(Req_CreateAccount requestBody)
+    {
+        var define = _masterHandler.GetInfoDataByIndex<InfoDefine>(NicknameDefineIndex);
+        return string.IsNullOrWhiteSpace(requestBody.Nickname) ? define?.Description ?? "졸리" : requestBody.Nickname;
+    }
+
+    private async Task<int> CreateUserAccountAsync(Req_CreateAccount requestBody, string nickName, QueryFactory db, MySqlTransaction transaction)
+    {
+        string? memberId = string.IsNullOrWhiteSpace(requestBody.MemberId) ? null : requestBody.MemberId;
+
+        return await db.Query(TableNames.UserAccount).InsertGetIdAsync<int>(new
+        {
+            Member_id = memberId,
+            Unity_device_number = requestBody.UnityDeviceNumber,
+            Nickname = nickName
+        }, transaction);
+    }
+
+    private async Task<int> CreateDefaultCharacterAsync(int userIndex, QueryFactory db, MySqlTransaction transaction)
+    {
+        return await db.Query(TableNames.UserCharacter).InsertAsync(new
+        {
+            user_index = userIndex,
+            character_index = 1
+        }, transaction);
+    }
+
+    private async Task CreateInitialGoodsAsync(int userIndex, QueryFactory db, MySqlTransaction transaction)
+    {
+        int food = _masterHandler.GetDefaultValueOrDefault(DefaultFoodIndex, 5, "Food");
+        int toy = _masterHandler.GetDefaultValueOrDefault(DefaultToyIndex, 5, "Toy");
+        int point = _masterHandler.GetDefaultValueOrDefault(DefaultPointIndex, 0, "Point");
+
+        var goodsList = new[] {
+            new { user_index = userIndex, goods_index = 1, quantity = food },
+            new { user_index = userIndex, goods_index = 2, quantity = toy },
+            new { user_index = userIndex, goods_index = 3, quantity = point }
+        };
+
+        foreach (var goods in goodsList)
+        {
+            int goodsInserted = await db.Query(TableNames.UserGoods).InsertAsync(goods, transaction: transaction);
+
+            if (goodsInserted <= 0)
+            {
+                throw new Exception($"[CreateAccount] UserGoods 삽입 실패 - goods_index: {goods.goods_index}");
+            }
+        }
+    }
+
+    private async Task CreateUserMissionsAsync(int userIndex, QueryFactory db, MySqlTransaction transaction)
+    {
+        List<InfoDailyMission>? missions = _masterHandler.GetAll<InfoDailyMission>();
+        if (missions == null || missions.Count == 0)
+        {
+            throw new Exception($"[CreateAccount] 마스터 데이터에 일일 미션 없음");
+        }
+
+        foreach (var mission in missions)
+        {
+            int missionInsert = await db.Query(TableNames.UserDailyMission).InsertAsync(new
+            {
+                user_index = userIndex,
+                daily_mission_index = mission.Daily_Mission_Index,
+                goods_type = mission.Goods_Type,
+                goods_index = mission.Goods_Index,
+                mission_goal_count = mission.Mission_Goal_Count,
+            }, transaction: transaction);
+
+            if (missionInsert <= 0)
+            {
+                throw new Exception($"[DailyMission] DailyMission 삽입 실패 - daily_mission_index: {mission.Daily_Mission_Index}");
+            }
+        }
     }
 
     #endregion

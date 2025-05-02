@@ -44,8 +44,11 @@ public static class DbColumns
     public const string UserIndex = "user_index";
     /// <summary> 맴버 아이디 </summary>
     public const string MemberId = "member_id";
+    /// <summary> Unity Device Number </summary>
+    public const string Unity_Device_Number = "unity_device_number";
     /// <summary> 닉네임 </summary>
     public const string Nickname = "nickname";
+
     #endregion
 
     #region 유저 재화 테이블 컬럼

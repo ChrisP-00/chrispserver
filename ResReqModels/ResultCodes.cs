@@ -36,6 +36,10 @@ public enum ResultCodes
     Ban_Account = -2002,
     [Description("삭제된 계정")]
     Deleted_Account = -2003,
+    [Description("맴버 아이디가 없음")]
+    No_MemberId = -2004,
+    [Description("게스트 계정 없음")]
+    No_Guest_Account = -2005,
 
     [Description("계정 생성 후 데이터 오류")]
     Create_Account_Fail = -2101,

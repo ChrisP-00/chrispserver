@@ -18,6 +18,8 @@ public class Response
 
     public class User_Account
     {
+        public string? Member_Id { get; set; }
+        public string? Unity_Device_Number {  get; set; }
         public int User_Index { get; set; }
         public string? Nickname { get; set; }
         public bool Is_Banned { get; set; }

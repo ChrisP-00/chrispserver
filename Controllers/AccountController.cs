@@ -21,26 +21,6 @@ public class AccountController : ControllerBase
         _redisAuthService = redisAuthService;
     }
 
-    /// <summary>
-    /// 회원가입 요청
-    /// </summary>
-    [HttpPost("CreateAccount")]
-    public async Task<Result<Res_Login>> CreateAccountAsync([FromBody] Req_CreateAccount requestBody)
-    {
-        Console.WriteLine(">>>>>>>>>>>>>>>> [CreateAccount Request] " + JsonSerializer.Serialize(requestBody));
-        return await _account.CreateAccountAsync(requestBody);
-    }
-
-    /// <summary>
-    /// 로그인 요청
-    /// </summary>
-    [HttpPost("Login")]
-    public async Task<Result<Res_Login>> LoginAsync([FromBody] Req_Login requestBody)
-    {
-        Console.WriteLine(">>>>>>>>>>>>>>>> [Login Request] " + JsonSerializer.Serialize(requestBody));
-        return await _account.LoginAsync(requestBody);
-    }
-
 
     /// <summary>
     /// 로그인 요청
@@ -49,6 +29,13 @@ public class AccountController : ControllerBase
     public async Task<Result<Res_Login>> LoginOrCreateAccountAsync([FromBody] Req_Login requestBody)
     {
         Console.WriteLine(">>>>>>>>>>>>>>>> [Login or Create Account Request] " + JsonSerializer.Serialize(requestBody));
+
+        if (string.IsNullOrWhiteSpace(requestBody.UnityDeviceNumber))
+        {
+            Console.WriteLine($"[Controller] Unity Device Number 누락");
+            return Result<Res_Login>.Fail(ResultCodes.InputData_MissingRequiredField);
+        }
+
         return await _account.LoginOrCreateAccountAsync(requestBody);
     }
 
