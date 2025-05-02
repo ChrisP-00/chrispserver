@@ -54,7 +54,23 @@ public class CharacterController : ControllerBase
     [HttpPost("PlayStatus")]
     public async Task<Result> PlayStatusAsync([FromBody] Req_PlayStatus requestBody)
     {
+        if (!ModelState.IsValid)
+        {
+            Console.WriteLine("[ModelState] 바인딩 실패");
+            foreach (var kvp in ModelState)
+            {
+                foreach (var error in kvp.Value.Errors)
+                {
+                    Console.WriteLine($"[Error] {kvp.Key}: {error.ErrorMessage}");
+                }
+            }
+
+            return Result.Fail(ResultCodes.InputData_MissingRequiredField);
+        }
+
         Console.WriteLine(">>>>>>>>>>>>>>>> [PlayStatus Request] " + JsonSerializer.Serialize(requestBody));
+
+        Console.WriteLine($"[DEBUG] PlayStatus 요청 받음: userIndex = {requestBody.UserIndex}, goodType = {requestBody.GoodType}");
 
         if (!Enum.IsDefined(requestBody.GoodType))
         {

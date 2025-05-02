@@ -20,7 +20,6 @@ public class Request
     public class Req_UserAuth : IUserAuth
     {
         public int UserIndex { get; set; }
-        public int UserToken { get; set; }
     }
 
 
@@ -36,6 +35,7 @@ public class Request
     {
         public string? MemberId { get; set; }
         public string? UnityDeviceNumber { get; set; }
+        public string? Nickname { get; set; }
     }
     #endregion
 

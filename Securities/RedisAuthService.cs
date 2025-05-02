@@ -10,7 +10,7 @@ public class RedisAuthService : IRedisAuthService
     public RedisAuthService(IConnectionMultiplexer redis, IConfiguration configuration)
     {
         _db = redis.GetDatabase();
-        _expireMinutes = configuration.GetValue<int>("TokenExpireMinutes", 1);
+        _expireMinutes = configuration.GetSection("Auth").GetValue<int>("TokenExpireMinutes", 1);
     }
 
     public async Task<string> GenerateTokenAsync(string memberId)

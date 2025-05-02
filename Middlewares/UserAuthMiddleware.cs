@@ -21,12 +21,15 @@ public class UserAuthMiddleware
 
     public async Task InvokeAsync(HttpContext context)
     {
+        Console.WriteLine("진입");
+
         if (context.Request.Method != HttpMethods.Post)
         {
             await _nextTask(context);
             return;
         }
 
+        // account에서 create, login만 넘기기
         if (context.Request.Path.Value?.StartsWith("/Account", StringComparison.OrdinalIgnoreCase) == true)
         {
             await _nextTask(context);
@@ -42,7 +45,7 @@ public class UserAuthMiddleware
         // Authorization 헤더 확인 (JWT 형식)
         if (context.Request.Headers.TryGetValue("Authorization", out var authHeader))
         {
-            authToken = authHeader.ToString().Replace("Bearer :", "").Trim();
+            authToken = authHeader.ToString().Replace("Bearer ", "").Trim();
 
             if (!string.IsNullOrEmpty(authToken))
             {
@@ -85,9 +88,11 @@ public class UserAuthMiddleware
                 return;
             }
 
+            // Redis에 해당 유저의 토큰이 있는지 확인
             var (isOk, userInfo) = await _memoryDB.GetUserAsync(memberId);
             if (!isOk || userInfo == null || userInfo.AuthToken != authToken)
             {
+                // 토큰 만료 혹은 잘못된 토큰으로 클라에 반환
                 await RespondError(context, ResultCodes.AuthTokenFailWrongAuthToken);
                 return;
             }
@@ -132,7 +137,6 @@ public class UserAuthMiddleware
 
         Console.WriteLine($"[UserAuthMiddleware] 락 설정 시도 성공 {userLockKey}");
 
-
         return userLockKey;
     }
 
@@ -153,10 +157,12 @@ public class UserAuthMiddleware
     {
         try
         {
+            // 다음 컨트롤러로 요청 전달
             await _nextTask(context);
         }
         finally
         {
+            // 완료 후 유저 락 제거
             if (!string.IsNullOrEmpty(userLockKey))
             {
                 await _memoryDB.DelUserReqLockAsync(userLockKey);

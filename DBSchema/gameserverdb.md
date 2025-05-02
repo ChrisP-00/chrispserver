@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS gameserverdb.`user_character` (
     exp	                        INT	         NOT NULL DEFAULT 0     COMMENT '캐릭터 경험치',
     is_active	                BOOL         NOT NULL DEFAULT FALSE     COMMENT	'현재 키우는 중인지 여부',
     is_acquired                 BOOL         NOT NULL DEFAULT FALSE     COMMENT '캐릭터를 획득하였는지 여부',
+    play_days_  	            INT	         NOT NULL DEFAULT 0     COMMENT '캐릭터 함께한 일수',
     equipped_at                 DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '캐릭터 장착 날짜',
     acquired_at	                DATETIME     DEFAULT NULL	COMMENT	'캐릭터 획득 날짜	',
     PRIMARY KEY (user_index, character_index)

@@ -1,10 +1,7 @@
 ﻿using chrispserver.DbConfigurations;
 using chrispserver.ResReqModels;
-using Microsoft.AspNetCore.Identity;
 using MySqlConnector;
-using SqlKata;
 using SqlKata.Execution;
-using System.Transactions;
 using static chrispserver.DbEntity.InfoEntities;
 using static chrispserver.DbEntity.UserEntities;
 using static chrispserver.ResReqModels.Request;
@@ -293,10 +290,10 @@ public class CharacterService : ICharacter
 
     public async Task<Result> PlayStatusAsync(Req_PlayStatus requestBody)
     {
-        if (_masterHandler.IsValid<InfoItem>(requestBody.GoodsIndex))
+        if (!_masterHandler.IsValid<InfoItem>(requestBody.GoodsIndex))
         {
             Console.WriteLine($"Db에 존재하지 않는 아이템 인덱스 : {requestBody.GoodsIndex}");
-            Result.Fail(ResultCodes.Equip_Fail_NotExist);
+            return Result.Fail(ResultCodes.Equip_Fail_NotExist);
         }
 
         return await _connectionManager.ExecuteInTransactionAsync(DbKeys.GameServerDB, async (db, transaction) =>
@@ -321,7 +318,6 @@ public class CharacterService : ICharacter
 
     public async Task<Result> UseGoodsAsync(Req_PlayStatus requestBody, QueryFactory db, MySqlTransaction transaction)
     {
-        // 요청한 재화의 수량 확인
         UserGoods userGoods = await db.Query(TableNames.UserGoods)
                 .Where(DbColumns.UserIndex, requestBody.UserIndex)
                 .Where(DbColumns.GoodsIndex, requestBody.GoodsIndex)

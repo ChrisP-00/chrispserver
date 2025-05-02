@@ -12,7 +12,7 @@ CREATE DATABASE IF NOT EXISTS masterdb;
 ```sql
 DROP TABLE IF EXISTS masterdb.`info_define`;
 CREATE TABLE IF NOT EXISTS masterdb.`info_define` (
-    define_index         INT            NOT NULL            COMMENT '정의 고유 인덱스',
+    define_index         INT            NOT NULL            COMMENT '정의 고유 식별자',
     description          VARCHAR(20)    DEFAULT NULL        COMMENT '설명',
     value                FLOAT          NOT NULL DEFAULT 0  COMMENT '값',
     PRIMARY KEY (define_index)
@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS masterdb.`info_define` (
 ```sql
 DROP TABLE IF EXISTS masterdb.`info_character`;
 CREATE TABLE IF NOT EXISTS masterdb.`info_character` (
-    character_index     INT             NOT NULL        COMMENT '캐릭터 고유 인덱스',
+    character_index     INT             NOT NULL        COMMENT '캐릭터 고유 식별자',
     character_name      VARCHAR(10)     DEFAULT NULL    COMMENT '캐릭터 이름 (변경되지 않음)',
     PRIMARY KEY (character_index)
 ) COMMENT='게임 내 모든 캐릭터의 기본 정보 테이블';
@@ -33,8 +33,8 @@ CREATE TABLE IF NOT EXISTS masterdb.`info_character` (
 ```sql
 DROP TABLE IF EXISTS masterdb.`info_daily_mission`;
 CREATE TABLE IF NOT EXISTS masterdb.`info_daily_mission` (
-    daily_mission_index     INT         NOT NULL    COMMENT '일일 미션 고유 인덱스',
-    goods_type              INT         NOT NULL    COMMENT '미션 타입 (1: 밥주기, 2: 놀아주기 등)',
+    daily_mission_index     INT         NOT NULL    COMMENT '일일 미션 고유 식별자',
+    goods_type              INT         NOT NULL    COMMENT '사용해야 하는 재화 타입',
     goods_index             INT         NOT NULL    COMMENT '사용해야 하는 재화 인덱스',
     mission_goal_count      TINYINT     NOT NULL     COMMENT '미션 수행 목표 수',
     reward_type             TINYINT     NOT NULL    COMMENT '보상 타입 (goods_index 참조)',
@@ -72,10 +72,20 @@ CREATE TABLE IF NOT EXISTS masterdb.`info_item` (
 ```sql
 DROP TABLE IF EXISTS masterdb.`info_Levels`;
 CREATE TABLE IF NOT EXISTS masterdb.`info_Levels` (
-    level_index             INT          NOT NULL               COMMENT '레벨 업 고유 인덱스',
-    character_index         INT          NOT NULL               COMMENT '캐릭터 고유 인덱스',
+    level_index             INT          NOT NULL               COMMENT '레벨 업 고유 식별자',
+    character_index         INT          NOT NULL               COMMENT '캐릭터 고유 식별자',
     level	                INT	         NOT NULL DEFAULT 0     COMMENT '캐릭터 레벨',
     required_exp	        INT	         NOT NULL DEFAULT 0     COMMENT '캐릭터 경험치',
     PRIMARY KEY (level_index)
 ) COMMENT='캐릭터 레벨 업 정보 테이블';
+```
+
+## Product Table
+```sql
+DROP TABLE IF EXISTS masterdb.`info_products`;
+CREATE TABLE IF NOT EXISTS masterdb.`info_products` (
+    product_index     INT             NOT NULL        COMMENT '캐릭터 제품 고유 식별자',
+    product_name      VARCHAR(10)     DEFAULT NULL    COMMENT '캐릭터 제품 이름 (변경되지 않음)',
+    PRIMARY KEY (product_index)
+) COMMENT='게임 내 모든 캐릭터 제품 기본 정보 테이블';
 ```

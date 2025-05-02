@@ -25,6 +25,12 @@ builder.Services.AddTransient<IMission, MissionService>();
 // Add services to the container.
 builder.Services.AddRazorPages();
 
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
+    });
+
 var app = builder.Build();
 
 try
@@ -54,6 +60,7 @@ app.UseHttpsRedirection();
 app.UseRouting();
 
 app.UseMiddleware<UserAuthMiddleware>();
+
 app.UseAuthorization();
 
 // API 요청을 처리할 컨트롤러 등록
@@ -61,6 +68,7 @@ app.UseEndpoints(endPoints =>
 {
     endPoints.MapControllers();
 });
+
 
 app.MapStaticAssets();
 app.MapRazorPages()

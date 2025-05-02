@@ -79,6 +79,6 @@ public static class DbColumns
     /// <summary> 미션 진행도 </summary>
     public const string Mission_progress = "mission_progress";
     /// <summary> 미션 목표 수 </summary>
-    public const string Mission_Goal_Count = "mission_gaol_count";
+    public const string Mission_Goal_Count = "mission_goal_count";
     #endregion
 }

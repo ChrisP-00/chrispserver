@@ -20,8 +20,8 @@ public class MissionService : IMission
     public async Task<Result> UpdateMissionProcessAsync(Req_PlayStatus requestBody, QueryFactory db, MySqlTransaction transaction)
     {
         var hasDailyMissions = await db.Query(TableNames.UserDailyMission)
-                    .Where(DbColumns.UserIndex, requestBody.UserIndex)
-                    .ExistsAsync(transaction);
+                        .Where(DbColumns.UserIndex, requestBody.UserIndex)
+                        .ExistsAsync(transaction);
 
         if (!hasDailyMissions)
         {
@@ -33,7 +33,7 @@ public class MissionService : IMission
                         .Where(DbColumns.UserIndex, requestBody.UserIndex)
                         .Where(DbColumns.GoodsIndex, requestBody.GoodsIndex)
                         .WhereRaw($"{DbColumns.Mission_progress} < {DbColumns.Mission_Goal_Count}")
-                        .IncrementAsync(DbColumns.Mission_progress, requestBody.Quantity);
+                        .IncrementAsync(DbColumns.Mission_progress, requestBody.Quantity, transaction);
 
         return Result.Success();
     }
