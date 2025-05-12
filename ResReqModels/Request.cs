@@ -27,14 +27,14 @@ public class Request
     public class Req_CreateAccount : IMemberId
     {
         public string? MemberId { get; set; }
-        public string? UnityDeviceNumber { get; set; }
+        public string? DeviceId { get; set; }
         public string? Nickname { get; set; }
     }
 
     public class Req_Login : IMemberId
     {
         public string? MemberId { get; set; }
-        public string? UnityDeviceNumber { get; set; }
+        public string? DeviceId { get; set; }
         public string? Nickname { get; set; }
     }
     #endregion

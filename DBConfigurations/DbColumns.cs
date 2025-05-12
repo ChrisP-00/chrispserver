@@ -45,7 +45,7 @@ public static class DbColumns
     /// <summary> 맴버 아이디 </summary>
     public const string MemberId = "member_id";
     /// <summary> Unity Device Number </summary>
-    public const string Unity_Device_Number = "unity_device_number";
+    public const string Device_Id = "device_id";
     /// <summary> 닉네임 </summary>
     public const string Nickname = "nickname";
 

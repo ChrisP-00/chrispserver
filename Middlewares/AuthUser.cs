@@ -2,10 +2,8 @@
 
 public class AuthUser
 {
-    public string MemberId { get; set; } = string.Empty;
+    public string? MemberId { get; set; } = string.Empty;
     public string AuthToken { get; set; } = string.Empty;
-    public int UserIndex { get; set; }
-
-    // device id 추가
-    // status 
+    public string DeviceId { get; set; } = string.Empty;
+    public bool IsGuest { get; set; } = false;
 }

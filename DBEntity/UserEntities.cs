@@ -5,8 +5,8 @@ public class UserEntities
     public class UserAccount
     {
         public int User_Index { get; set; }
-        public string? Member_id { get; set; }
-        public string? Unity_device_number { get; set; }
+        public string? Member_Id { get; set; }
+        public string? Device_Id { get; set; }
         public string? Nickname { get; set; }
         public bool Is_Banned { get; set; }
         public bool Is_Deleted { get; set; }

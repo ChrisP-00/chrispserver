@@ -14,14 +14,14 @@ DROP TABLE IF EXISTS gameserverdb.`user_account`;
 CREATE TABLE IF NOT EXISTS gameserverdb.`user_account` (
     user_index                  INT          NOT NULL AUTO_INCREMENT PRIMARY KEY     COMMENT '유저 고유 ID',
     member_id                   VARCHAR(20)  NULL     UNIQUE                         COMMENT '카페24 멤버 아이디 (게스트는 NULL)',
-    unity_device_number         VARCHAR(100) NOT NULL   COMMENT '유니티 디바이스 ID',
+    device_id                   VARCHAR(100) NOT NULL   COMMENT '디바이스 ID',
     nickname                    VARCHAR(15)  NOT NULL   COMMENT '닉네임',
     is_banned                   BOOLEAN      NOT NULL DEFAULT FALSE     COMMENT '계정 정지 여부: FALSE=정상, TRUE=정지됨',
     is_delete                   BOOLEAN      NOT NULL DEFAULT FALSE     COMMENT '계정 삭제 여부: FALSE=정상, TRUE=삭제됨',
     created_at                  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP     COMMENT '계정 생성 시각 (KST)',
     last_login_at               DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP     COMMENT '마지막 로그인 시각 (KST)'
 
-    INDEX idx_unity_device_number (unity_device_number)
+    INDEX idx_device_id (device_id)
 ) COMMENT='유저 계정 정보 테이블';
 ```
 

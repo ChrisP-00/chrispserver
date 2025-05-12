@@ -26,8 +26,14 @@ public enum ResultCodes
     [Description("Auth Token Fail")]
     AuthTokenFailWrongKeyword,
 
-    [Description("잘못된 Auth Token")]
-    AuthTokenFailWrongAuthToken,
+    [Description("잘못된 유저 Auth Token")]
+    AuthTokenFailWrongUserAuthToken,
+
+    [Description("잘못된 게스트 Auth Token")]
+    AuthTokenFailWrongGuestAuthToken,
+
+    [Description("중복된 로그인")]
+    AuthTokenFailDuplicatedLogin,
 
     // 계정 오류 -2000 ~ -2499
     [Description("계정이 중복됨")]
@@ -40,6 +46,10 @@ public enum ResultCodes
     No_MemberId = -2004,
     [Description("게스트 계정 없음")]
     No_Guest_Account = -2005,
+    [Description("게스트 계정 로그인 중 오류 발생")]
+    Account_GuestLogin_Fail = -2006,
+    [Description("게스트 계정에서 정식 계정으로 업데이트 중 오류 발생")]
+    Account_Update_Fail = -2007,
 
     [Description("계정 생성 후 데이터 오류")]
     Create_Account_Fail = -2101,

@@ -30,9 +30,9 @@ public class AccountController : ControllerBase
     {
         Console.WriteLine(">>>>>>>>>>>>>>>> [Login or Create Account Request] " + JsonSerializer.Serialize(requestBody));
 
-        if (string.IsNullOrWhiteSpace(requestBody.UnityDeviceNumber))
+        if (string.IsNullOrWhiteSpace(requestBody.DeviceId))
         {
-            Console.WriteLine($"[Controller] Unity Device Number 누락");
+            Console.WriteLine($"[Controller] Device Id 누락");
             return Result<Res_Login>.Fail(ResultCodes.InputData_MissingRequiredField);
         }
 
