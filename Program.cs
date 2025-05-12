@@ -2,6 +2,7 @@ using chrispserver.DbConfigurations;
 using chrispserver.Middlewares;
 using chrispserver.Securities;
 using chrispserver.Services;
+using chrispserver.Utilities;
 using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -22,6 +23,12 @@ builder.Services.AddTransient<IAccount, AccountService>();
 builder.Services.AddTransient<ICharacter, CharacterService>();
 builder.Services.AddTransient<IMission, MissionService>();
 
+// 기본 콘솔 로깅 활성화
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole();
+builder.Logging.AddDebug();
+
+
 // Add services to the container.
 builder.Services.AddRazorPages();
 
@@ -32,6 +39,11 @@ builder.Services.AddControllers()
     });
 
 var app = builder.Build();
+
+// LogManager에 LoggerFactory 주입
+LogManager.SetLoggerFactory(app.Services.GetRequiredService<ILoggerFactory>(), "Server");
+// 앱 종료 시 로그 큐 마무리 처리
+AppDomain.CurrentDomain.ProcessExit += (_, _) => LogManager.Dispose();
 
 try
 {

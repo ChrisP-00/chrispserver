@@ -5,6 +5,7 @@ using System.Text.Json;
 using static chrispserver.ResReqModels.Response;
 using static chrispserver.ResReqModels.Request;
 using chrispserver.Securities;
+using chrispserver.Utilities;
 
 namespace chrispserver.Controllers;
 
@@ -28,15 +29,25 @@ public class AccountController : ControllerBase
     [HttpPost("LoginOrCreateAccount")]
     public async Task<Result<Res_Login>> LoginOrCreateAccountAsync([FromBody] Req_Login requestBody)
     {
-        Console.WriteLine(">>>>>>>>>>>>>>>> [Login or Create Account Request] " + JsonSerializer.Serialize(requestBody));
+        LogManager.Info("[Account] LoginOrCreateAccout 요청 : " +  JsonSerializer.Serialize(requestBody));
 
         if (string.IsNullOrWhiteSpace(requestBody.DeviceId))
         {
-            Console.WriteLine($"[Controller] Device Id 누락");
+            LogManager.Warn("[Account] Device Id 누락");
+            LogManager.LogUserContentError(-1, "LoginOrCreateAccount", ResultCodes.InputData_MissingRequiredField);
             return Result<Res_Login>.Fail(ResultCodes.InputData_MissingRequiredField);
         }
 
-        return await _account.LoginOrCreateAccountAsync(requestBody);
+        try
+        {
+            return await _account.LoginOrCreateAccountAsync(requestBody);
+        }
+        catch (Exception ex)
+        {
+            LogManager.Error(ex);
+            LogManager.LogReceiveMissionError(-1, ex, JsonSerializer.Serialize(requestBody));
+            return Result<Res_Login>.Fail(ResultCodes.Login_Fail_Exception);
+        }
     }
 
     /// <summary>
