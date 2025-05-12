@@ -1,5 +1,8 @@
-﻿using StackExchange.Redis;
+﻿using chrispserver.ResReqModels;
+using chrispserver.Securities;
+using StackExchange.Redis;
 using System.Text.Json;
+using static Humanizer.In;
 
 namespace chrispserver.Middlewares;
 
@@ -13,24 +16,13 @@ public class RedisMemoryDb : IMemoryDb
         _db = redis.GetDatabase();
     }
 
-    public async Task<(bool, AuthUser?)> GetUserAsync(string id)
-    {
-        var data = await _db.StringGetAsync($"user:{id}");
-        if (!data.HasValue)
-        {
-            return (false, null);
-        }
-
-        return (true, JsonSerializer.Deserialize<AuthUser>(data!));
-    }
-
     public async Task<bool> SetUserReqLockAsync(string token)
     {
-        return await _db.StringSetAsync($"lock:{token}", "1", TimeSpan.FromSeconds(LockExpireSeconds), When.NotExists);
+        return await _db.StringSetAsync(MemoryDbKeyMaker.MakeUserLockKey(token), "1", TimeSpan.FromSeconds(LockExpireSeconds), When.NotExists);
     }
 
     public async Task DelUserReqLockAsync(string lockKey)
     {
-       await _db.KeyDeleteAsync(lockKey);
+        await _db.KeyDeleteAsync(lockKey);
     }
 }

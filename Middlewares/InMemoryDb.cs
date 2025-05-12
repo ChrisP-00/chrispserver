@@ -35,8 +35,39 @@ public class InMemoryDb : IMemoryDb
         return Task.CompletedTask;
     }
 
-    /// <summary>
-    /// 테스트 시 유저 추가 용
-    /// </summary>
     public void AddUser(AuthUser user) => _userStore[user.MemberId] = user;
+
+    public Task<bool> CheckTokenMatchAsync(string id, string token)
+    {
+        var ok = _userStore.TryGetValue(id, out var user) && user.AuthToken == token;
+        return Task.FromResult(ok);
+    }
+
+    public Task<AuthUser?> GetUserDataAsync(string memberId, string token)
+    {
+        var ok = _userStore.TryGetValue(memberId, out var user);
+        return Task.FromResult(ok && user != null && user.AuthToken == token ? user : null);
+    }
+
+    public Task<AuthUser?> GetGuestDataAsync(string deviceId, string token)
+    {
+        var ok = _userStore.TryGetValue(deviceId, out var user);
+        return Task.FromResult(ok && user != null && user.AuthToken == token ? user : null);
+    }
+
+    public Task<bool> CheckUserTokenMatchAsync(string memberId, string token)
+    {
+        return Task.FromResult(
+            _userStore.TryGetValue(memberId, out var user) &&
+            user.AuthToken == token
+        );
+    }
+
+    public Task<bool> CheckGuestTokenMatchAsync(string deviceId, string token)
+    {
+        return Task.FromResult(
+            _userStore.TryGetValue(deviceId, out var user) &&
+            user.AuthToken == token
+        );
+    }
 }

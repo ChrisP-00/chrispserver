@@ -1,10 +1,20 @@
-﻿namespace chrispserver.Securities;
+﻿using chrispserver.Middlewares;
+
+namespace chrispserver.Securities;
 
 public interface IRedisAuthService
 {
-    Task<string> GenerateTokenAsync(string memberId);
-    Task<string?> ValidateTokenAsync(string token);
+    Task<string> GenerateTokenAsync(string memberId, string deviceId);
+
+    Task<string> GenerateGuestTokenAsync(string deviceId);
+
+    Task<AuthUser?> GetAuthUserByTokenAsync(string token);
+
+    Task<string?> GetTokenByIdAsync(string id, bool isGuest);
+
+    Task ExtendTTLAsync(AuthUser authUser);
+
     Task<bool> RevokeTokenAsync(string token);
-    Task ForceLogoutAsync(string memberId);
-    Task<bool> ExtendTokenTTLAsync(string token);
+
+    Task<bool> ForceLogoutAsync(string token);
 }
