@@ -3,16 +3,12 @@ using chrispserver.DbConfigurations;
 using chrispserver.ResReqModels;
 using chrispserver.Securities;
 using MySqlConnector;
-using SqlKata;
 using SqlKata.Execution;
-using System;
-using System.Collections.Specialized;
-using System.Reflection.Metadata.Ecma335;
+using System.Diagnostics;
 using static chrispserver.DbEntity.InfoEntities;
 using static chrispserver.DbEntity.UserEntities;
 using static chrispserver.ResReqModels.Request;
 using static chrispserver.ResReqModels.Response;
-using static Humanizer.In;
 
 
 namespace chrispserver.Services;
@@ -38,55 +34,62 @@ public class AccountService : IAccount
 
     public async Task<Result<Res_Login>> LoginOrCreateAccountAsync(Req_Login requestBody)
     {
-        if (!string.IsNullOrWhiteSpace(requestBody.MemberId))
+        var loginResult = await LoginAsync(requestBody); // 기존 계정이면 로그인 처리
+
+        if (loginResult.IsSuccess && loginResult.Data != null)
         {
-            // memberId로 계정 로그인
-            var userAccountResult = await TryLoginWithMemberIdAsync(requestBody);
-            Console.WriteLine($"result : {userAccountResult.ResultCode.ToString()}");
-            if (userAccountResult.ResultCode == ResultCodes.Ok)
-            {
-                return userAccountResult;
-            }
+            return loginResult;
         }
 
-        // device Id로 게스트 계정 로그인
-        var guestAccountResult = await HandleGuestAccountAsync(requestBody);
-        if (guestAccountResult.IsSuccess)
+        // 계정이 없으면 생성
+        var createAccountResult = await CreateAccountAsync(new Req_CreateAccount
         {
-            return guestAccountResult;
-        }
+            MemberId = requestBody.MemberId,
+            DeviceId = requestBody.DeviceId,
+            Nickname = requestBody.Nickname
+        });
 
-        // 계정 생성 및 로그인
-        return await CreateAndLoginNewAccountAsync(requestBody);
+        if (!createAccountResult.IsSuccess)
+            return Result<Res_Login>.Fail(createAccountResult.ResultCode);
+
+        // 생성 후 로그인 재사용
+        return await LoginAsync(requestBody);
     }
 
-
     #region 내부 함수 정의
-    private async Task<Result<Res_Login>> TryLoginWithMemberIdAsync(Req_Login requestBody)
+
+    private async Task<Result<Res_Login>> LoginAsync(Req_Login requestBody)
     {
         try
         {
             var gameDb = _gameDb;
 
-            var userAccount = await TryGetUserAccountByMemberIdAsync(requestBody.MemberId!, gameDb);
+            var userAccount = await TryLoginWithDeviceIdAsync(requestBody.DeviceId!);
 
-            if (userAccount.ResultCode != ResultCodes.Ok)
+            if (userAccount.ResultCode != ResultCodes.Ok || userAccount.Data == null)
             {
                 Console.WriteLine("Login Fail");
                 return Result<Res_Login>.Fail(userAccount.ResultCode);
             }
 
+            // ✅ 정지/삭제된 계정 처리
+            if (userAccount.Data.Is_Banned)
+            {
+                Console.WriteLine("정지된 계정");
+                return Result<Res_Login>.Fail(ResultCodes.Ban_Account);
+            }
+
+            if (userAccount.Data.Is_Deleted)
+            {
+                Console.WriteLine("삭제된 계정");
+                return Result<Res_Login>.Fail(ResultCodes.Deleted_Account);
+            }
+
+            // 계정 정보 업데이트
+            await UpdateAccountStatusAsync(requestBody, userAccount.Data);
+
             // Redis token 생성
-            string token = await _redisAuthService.GenerateTokenAsync(requestBody.MemberId!, requestBody.DeviceId);
-
-            // 마지막 로그인 시간 변경 
-            await gameDb.Query(TableNames.UserAccount)
-                .Where("user_index", userAccount.Data!.User_Index)
-                .UpdateAsync(new
-                {
-                    Last_Login_At = DateTime.Now
-                });
-
+            string token = await _redisAuthService.GenerateTokenAsync(requestBody.MemberId, requestBody.DeviceId);
             var loginData = await BuildResLoginAsync(userAccount.Data, token);
 
             return Result<Res_Login>.Success(loginData.Data!);
@@ -98,20 +101,60 @@ public class AccountService : IAccount
         }
     }
 
+    private async Task<Result> CreateAccountAsync(Req_CreateAccount requestBody)
+    {
+        var transactionResult = await _connectionManager.ExecuteInTransactionAsync(DbKeys.GameServerDB, async (db, transaction) =>
+        {
+            // define에서 가져오기
+            string nickName = GetDefaultNickname(requestBody);
+
+            // 1. UserAccount 생성
+            int userIndex = await CreateUserAccountAsync(requestBody, nickName, db, transaction);
+            if (userIndex <= 0)
+            {
+                Console.WriteLine("[CreateAccount] 계정 생성 실패 - 반환된 인덱스가 0 이하입니다.");
+                return Result.Fail(ResultCodes.Create_Account_Fail_Exception);
+            }
+            Console.WriteLine($"user index : {userIndex} ");
+
+            // 2. UserCharacter 생성
+            int insertedCharacter = await CreateDefaultCharacterAsync(userIndex, db, transaction);
+            if (insertedCharacter <= 0)
+            {
+                Console.WriteLine("[CreateAccount] UserCharacter 삽입 실패");
+                return Result.Fail(ResultCodes.Create_Account_Fail_Exception);
+            }
+
+            // 3. UserGoods 생성
+            await CreateInitialGoodsAsync(userIndex, db, transaction);
+
+            // 4. 일일 미션 생성
+            await CreateUserMissionsAsync(userIndex, db, transaction);
+
+            return Result.Success();
+        });
+
+        if (transactionResult.ResultCode != ResultCodes.Ok)
+        {
+            return Result.Fail(transactionResult.ResultCode);
+        }
+
+        return Result.Success();
+    }
+
     private async Task<Result<User_Account>> TryLoginWithDeviceIdAsync(string deviceId)
     {
         var gameDb = _gameDb;
 
         var query = gameDb.Query(TableNames.UserAccount)
-          .Where(DbColumns.Device_Id, deviceId)
-          .WhereNull(DbColumns.MemberId);
+          .Where(DbColumns.Device_Id, deviceId);
 
         var dbUserAccount = await query.FirstOrDefaultAsync<UserAccount>();
 
         if (dbUserAccount == null)
         {
-            Console.WriteLine($"[Account] 게스트 계정 없음 : device_Id = {deviceId}");
-            return Result<User_Account>.Fail(ResultCodes.No_Guest_Account);
+            Console.WriteLine($"[Account] 계정 없음 : device_Id = {deviceId}");
+            return Result<User_Account>.Fail(ResultCodes.No_Account);
         }
 
         var userAccount = new User_Account
@@ -128,152 +171,52 @@ public class AccountService : IAccount
         return Result<User_Account>.Success(userAccount);
     }
 
-    private async Task<Result<User_Account>> TryGetUserAccountByMemberIdAsync(string memberId, QueryFactory db)
+    private async Task<Result> UpdateAccountStatusAsync(Req_Login requestBody, User_Account userAccount)
     {
-        if (string.IsNullOrWhiteSpace(memberId))
+        try
         {
-            return Result<User_Account>.Fail(ResultCodes.No_MemberId);
-        }
+            var gameDb = _gameDb;
 
-        var query = db.Query(TableNames.UserAccount)
-                  .Where(DbColumns.MemberId, memberId);
-
-        var dbUserAccount = await query.FirstOrDefaultAsync<UserAccount>();
-
-        if (dbUserAccount == null)
-        {
-            Console.WriteLine($"[Account] 로그인 실패 : 요청한 계정을 찾을 수 없음");
-            return Result<User_Account>.Fail(ResultCodes.Login_Fail_NotUser);
-        }
-
-        // 해당 맴버 id 로 밴 당한지 확인 필요 
-        if (dbUserAccount != null && dbUserAccount.Is_Banned)
-        {
-            Console.WriteLine($"[Account] 로그인 실패 : 요청한 계정 정지 상태");
-            return Result<User_Account>.Fail(ResultCodes.Ban_Account);
-        }
-
-        // 계정 삭제 유무 (계정이 있고 & 삭제됨) => 삭제된 계정
-        if (dbUserAccount != null && dbUserAccount.Is_Deleted)
-        {
-            Console.WriteLine($"[Account] 로그인 실패 : 요청한 계정 삭제 상태");
-            return Result<User_Account>.Fail(ResultCodes.Deleted_Account);
-        }
-
-        var userAccount = new User_Account
-        {
-            User_Index = dbUserAccount!.User_Index,
-            Member_Id = dbUserAccount.Member_Id,
-            Device_Id = dbUserAccount.Device_Id,
-            Nickname = dbUserAccount.Nickname,
-            Is_Banned = dbUserAccount.Is_Banned,
-            Is_Deleted = dbUserAccount.Is_Deleted,
-            Last_Login_At = dbUserAccount.Last_Login_At,
-        };
-
-        return Result<User_Account>.Success(userAccount);
-    }
-
-    private async Task<Result<Res_Login>> HandleGuestAccountAsync(Req_Login requestBody)
-    {
-        // device Id로 게스트 계정 로그인
-        var guestAccount = await TryLoginWithDeviceIdAsync(requestBody.DeviceId!);
-        Console.WriteLine($"게스트 계정 : {guestAccount.ResultCode.ToString()}");
-
-        if (guestAccount.IsSuccess && guestAccount.Data != null)
-        {
-            var db = _gameDb;
-
-            if (!string.IsNullOrWhiteSpace(requestBody.MemberId))
+            // 마지막 로그인 시간 변경 
+            var updateData = new Dictionary<string, object>
             {
-                Console.WriteLine($"[LoginOrCreate] 기존 게스트 계정에 memberId 등록 : {requestBody.MemberId}");
-                Result result = await UpdateGuestToMemberAccount(
-                    guestAccount.Data.User_Index,
-                    guestAccount.Data.Member_Id!,
-                    guestAccount.Data.Nickname);
+                [DbColumns.LastLoginAt] = DateTime.Now
+            };
 
-                if (result.ResultCode != ResultCodes.Ok)
-                {
-                    Console.WriteLine($"[UpdateGuestToMember]게스트 계정 MemberId 업데이트 오류 {guestAccount.Data.User_Index}");
-                }
+            // 계정 연동
+            if (!string.IsNullOrWhiteSpace(requestBody.MemberId) &&
+                !string.Equals(requestBody.MemberId, userAccount.Member_Id, StringComparison.Ordinal))
+            {
+                updateData[DbColumns.MemberId] = requestBody.MemberId;
+                userAccount.Member_Id = requestBody.MemberId;
             }
 
-            // Redis token 생성
-            string token = await _redisAuthService.GenerateGuestTokenAsync(requestBody.DeviceId!);
-            Console.WriteLine($"token: {token}");
-
-            var loginData = await BuildResLoginAsync(guestAccount.Data, token);
-
-            if (loginData.ResultCode != ResultCodes.Ok)
+            // 닉네임 업데이트
+            if (!string.IsNullOrWhiteSpace(requestBody.Nickname) &&
+                 !string.Equals(requestBody.Nickname, userAccount.Nickname, StringComparison.Ordinal))
             {
-                return Result<Res_Login>.Fail(loginData.ResultCode);
+                updateData[DbColumns.Nickname] = requestBody.Nickname;
+                userAccount.Nickname = requestBody.Nickname;
             }
 
-            return loginData;
+            // 데이터 업데이트
+            if (updateData.Count > 0)
+            {
+                int resultRows = await gameDb.Query(TableNames.UserAccount)
+                    .Where("user_index", userAccount.User_Index)
+                    .UpdateAsync(updateData);
+
+                if (resultRows > 0)
+                    return Result.Success();
+            }
+
+            return Result.Fail(ResultCodes.Account_Update_Fail);
         }
-
-        return Result<Res_Login>.Fail(ResultCodes.Account_GuestLogin_Fail);
-    }
-
-    private async Task<Result<Res_Login>> CreateAndLoginNewAccountAsync(Req_Login requestBody)
-    {
-        Req_CreateAccount req_CreateAccount = new Req_CreateAccount
+        catch (Exception ex)
         {
-            MemberId = requestBody.MemberId,
-            DeviceId = requestBody.DeviceId,
-            Nickname = requestBody.Nickname,
-        };
-
-        var createAccountResult = await CreateAccountAsync(req_CreateAccount);
-        if (createAccountResult.ResultCode != ResultCodes.Ok)
-        {
-            return Result<Res_Login>.Fail(createAccountResult.ResultCode);
+            Console.WriteLine($"[Account] 상태 업데이트 실패 : {ex}");
+            return Result.Fail(ResultCodes.Update_Account_Fail_Exception);
         }
-
-        var userAccount = await TryLoginWithDeviceIdAsync(requestBody.DeviceId!);
-
-        if (!userAccount.IsSuccess && userAccount.Data == null)
-        {
-            Console.WriteLine($"fail : {userAccount.ResultCode.ToString()}");
-            return Result<Res_Login>.Fail(userAccount.ResultCode);
-        }
-
-        // Redis token 생성
-        string token = string.IsNullOrWhiteSpace(requestBody.MemberId)
-            ? await _redisAuthService.GenerateGuestTokenAsync(requestBody.DeviceId!)
-            : await _redisAuthService.GenerateTokenAsync(requestBody.MemberId!, requestBody.DeviceId!);
-
-        Console.WriteLine($"token: {token}");
-
-        return await BuildResLoginAsync(userAccount.Data!, token);
-    }
-
-    private async Task<Result> UpdateGuestToMemberAccount(int userIndex, string memberId, string? nickname)
-    {
-        Console.WriteLine($"[LoginOrCreate] 기존 게스트 계정에 memberId 등록 : {memberId}");
-
-        var updateData = new Dictionary<string, object?>
-        {
-            ["Member_id"] = memberId
-        };
-
-        if (!string.IsNullOrWhiteSpace(nickname))
-        {
-            updateData["Nickname"] = nickname;
-        }
-
-        var db = _gameDb;
-
-        int updatedRow = await db.Query(TableNames.UserAccount)
-            .Where(DbColumns.UserIndex, userIndex)
-            .UpdateAsync(updateData);
-
-        if (updatedRow > 0)
-        {
-            return Result.Success();
-        }
-
-        return Result.Fail(ResultCodes.Create_Account_Fail);
     }
 
     private async Task<Result<Res_Login>> BuildResLoginAsync(User_Account userAccount, string token)
@@ -386,49 +329,6 @@ public class AccountService : IAccount
         }
     }
 
-    private async Task<Result> CreateAccountAsync(Req_CreateAccount requestBody)
-    {
-        var transactionResult = await _connectionManager.ExecuteInTransactionAsync(DbKeys.GameServerDB, async (db, transaction) =>
-        {
-            // define에서 가져오기
-            string nickName = GetDefaultNickname(requestBody);
-
-            Console.WriteLine($"닉네임 : {nickName}");
-
-            // 1. UserAccount 생성
-            int userIndex = await CreateUserAccountAsync(requestBody, nickName, db, transaction);
-            if (userIndex <= 0)
-            {
-                Console.WriteLine("[CreateAccount] 계정 생성 실패 - 반환된 인덱스가 0 이하입니다.");
-                return Result.Fail(ResultCodes.Create_Account_Fail_Exception);
-            }
-            Console.WriteLine($"user index : {userIndex} ");
-
-            // 2. UserCharacter 생성
-            int insertedCharacter = await CreateDefaultCharacterAsync(userIndex, db, transaction);
-            if (insertedCharacter <= 0)
-            {
-                Console.WriteLine("[CreateAccount] UserCharacter 삽입 실패");
-                return Result.Fail(ResultCodes.Create_Account_Fail_Exception);
-            }
-
-            // 3. UserGoods 생성
-            await CreateInitialGoodsAsync(userIndex, db, transaction);
-
-            // 4. 일일 미션 생성
-            await CreateUserMissionsAsync(userIndex, db, transaction);
-
-            return Result.Success();
-        });
-
-        if (transactionResult.ResultCode != ResultCodes.Ok)
-        {
-            return Result.Fail(transactionResult.ResultCode);
-        }
-
-        return Result.Success();
-    }
-
     private string GetDefaultNickname(Req_CreateAccount requestBody)
     {
         var define = _masterHandler.GetInfoDataByIndex<InfoDefine>(NicknameDefineIndex);
@@ -437,7 +337,7 @@ public class AccountService : IAccount
 
     private async Task<int> CreateUserAccountAsync(Req_CreateAccount requestBody, string nickName, QueryFactory db, MySqlTransaction transaction)
     {
-        string? memberId = string.IsNullOrWhiteSpace(requestBody.MemberId) ? null : requestBody.MemberId;
+        string? memberId = string.IsNullOrWhiteSpace(requestBody.MemberId) ? requestBody.DeviceId : requestBody.MemberId;
 
         return await db.Query(TableNames.UserAccount).InsertGetIdAsync<int>(new
         {

@@ -45,7 +45,7 @@ public enum ResultCodes
     [Description("맴버 아이디가 없음")]
     No_MemberId = -2004,
     [Description("게스트 계정 없음")]
-    No_Guest_Account = -2005,
+    No_Account = -2005,
     [Description("게스트 계정 로그인 중 오류 발생")]
     Account_GuestLogin_Fail = -2006,
     [Description("게스트 계정에서 정식 계정으로 업데이트 중 오류 발생")]

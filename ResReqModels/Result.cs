@@ -19,7 +19,6 @@ public class Result
     public static Result Fail(ResultCodes resultCode) => new Result(resultCode, resultCode.ToString());
 
     public static Result Fail(ResultCodes resultCode, string resultMessage) => new Result(resultCode, resultMessage);
-
 }
 
 public class Result<T>

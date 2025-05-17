@@ -22,7 +22,6 @@ public class AccountController : ControllerBase
         _redisAuthService = redisAuthService;
     }
 
-
     /// <summary>
     /// 로그인 요청
     /// </summary>
@@ -50,8 +49,9 @@ public class AccountController : ControllerBase
         }
     }
 
+
     /// <summary>
-    /// 로그 아웃 만들기 
+    /// 로그 아웃
     /// </summary>
     [HttpPost("Logout")]
     public async Task<Result> LogoutAsync([FromHeader] string token)
