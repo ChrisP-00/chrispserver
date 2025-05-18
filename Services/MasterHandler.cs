@@ -32,9 +32,7 @@ public class MasterHandler : IMasterHandler
             if (typeof(T) == typeof(InfoLevel))
             {
                 var actualList = list as List<InfoLevel>;
-                Console.WriteLine($"[DEBUG] InfoLevels Count: {actualList?.Count}");
-            }
-
+            } 
 
             Console.WriteLine($"[MasterHandler] {typeof(T).Name} 가져오기 성공");
             return (list as List<T>);

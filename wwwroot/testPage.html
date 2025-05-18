@@ -1,0 +1,91 @@
+﻿<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>ChrispServer API 테스트</title>
+</head>
+<body>
+    <h1>🌱 ChrispServer API 테스트</h1>
+
+    <h2>1. 로그인 또는 계정 생성</h2>
+    <input id="deviceId" placeholder="DeviceId" />
+    <input id="memberId" placeholder="MemberId (선택)" />
+    <input id="nickname" placeholder="Nickname (선택)" />
+    <button onclick="login()">Login</button>
+
+    <h2>2. 캐릭터 장착</h2>
+    <input id="characterIndex" placeholder="EquipCharacterIndex" />
+    <button onclick="equipCharacter()">Equip Character</button>
+
+    <h2>3. 미션 보상 수령</h2>
+    <input id="missionIndex" placeholder="DailyMissionIndex" />
+    <button onclick="receiveMission()">Receive Mission</button>
+
+    <h2>결과</h2>
+    <pre id="result" style="background:#f4f4f4;padding:1em;"></pre>
+
+    <script>
+    let token = "";
+    let deviceId = "";
+    let userIndex = 0;
+
+    const apiBase = "https://localhost:7113";
+
+    function updateResult(obj) {
+      document.getElementById("result").textContent = JSON.stringify(obj, null, 2);
+    }
+
+    async function login() {
+      deviceId = document.getElementById("deviceId").value;
+      const memberId = document.getElementById("memberId").value;
+      const nickname = document.getElementById("nickname").value;
+
+      const res = await fetch(`${apiBase}/Account/LoginOrCreateAccount`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ DeviceId: deviceId, MemberId: memberId, Nickname: nickname })
+      });
+
+      const json = await res.json();
+      updateResult(json);
+
+      token = json.data?.token || "";
+      userIndex = json.data?.userAccount?.user_Index || 0;
+    }
+
+    async function equipCharacter() {
+      const characterIndex = parseInt(document.getElementById("characterIndex").value);
+
+      const res = await fetch(`${apiBase}/Character/EquipCharacter`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer " + token,
+          "X-Device-Id": deviceId
+        },
+        body: JSON.stringify({ UserIndex: userIndex, EquipCharacterIndex: characterIndex })
+      });
+
+      const json = await res.json();
+      updateResult(json);
+    }
+
+    async function receiveMission() {
+      const missionIndex = parseInt(document.getElementById("missionIndex").value);
+
+      const res = await fetch(`${apiBase}/Reward/ReceiveMission`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer " + token,
+          "X-Device-Id": deviceId
+        },
+        body: JSON.stringify({ UserIndex: userIndex, DailyMissionIndex: missionIndex })
+      });
+
+      const json = await res.json();
+      updateResult(json);
+    }
+    </script>
+</body>
+</html>

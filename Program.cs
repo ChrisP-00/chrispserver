@@ -9,14 +9,38 @@ var builder = WebApplication.CreateBuilder(args);
 
 // 의존성 주입
 builder.Services.AddSingleton<ConnectionManager>();
-builder.Services.AddSingleton<IRedisAuthService, RedisAuthService>();
-builder.Services.AddSingleton<IMemoryDb, RedisMemoryDb>();
-builder.Services.AddSingleton<IConnectionMultiplexer>(provider =>
+
+// Redis 연결 예외 방어
+builder.Services.AddSingleton<IConnectionMultiplexer?>(provider =>
 {
     var config = provider.GetRequiredService<IConfiguration>();
-    var redisConfig = config.GetConnectionString("Redis") ?? "127.0.0.1:6379";
-    return ConnectionMultiplexer.Connect(redisConfig);
+    var redisConfig = config.GetConnectionString("Redis");
+
+    if (!string.IsNullOrWhiteSpace(redisConfig))
+    {
+        try
+        {
+            Console.WriteLine($"[Redis] 연결 시도: {redisConfig}");
+            return ConnectionMultiplexer.Connect(redisConfig);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Redis] 연결 실패: {ex.Message}");
+        }
+    }
+    else
+    {
+        Console.WriteLine("[Redis] 연결 문자열이 비어 있음");
+    }
+
+    // Redis 없이도 실행되도록 null 반환
+    return null;
 });
+
+// Redis 의존 클래스 등록
+builder.Services.AddSingleton<IRedisAuthService, RedisAuthService>();
+builder.Services.AddSingleton<IMemoryDb, RedisMemoryDb>();
+
 builder.Services.AddSingleton<IMaster, MasterDBService>();
 builder.Services.AddSingleton<IMasterHandler, MasterHandler>();
 builder.Services.AddTransient<IAccount, AccountService>();
@@ -27,7 +51,6 @@ builder.Services.AddTransient<IMission, MissionService>();
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
 builder.Logging.AddDebug();
-
 
 // Add services to the container.
 builder.Services.AddRazorPages();
@@ -51,11 +74,11 @@ try
     var masterHandler = app.Services.GetRequiredService<IMasterHandler>();
     await masterHandler.LoadAllAsync();
     Console.WriteLine($"[Check] LoadAllAsync 대상 MasterHandler 해시: {masterHandler.GetHashCode()}");
-
 }
 catch (Exception ex)
 {
-    Console.WriteLine($"[Error] 마스터 DB 로딩 실패 : {ex.ToString()}");
+    Console.WriteLine($"[Error] 마스터 DB 로딩 실패 : {ex}");
+    // 실행 중단 없이 로그만 남기고 진행하려면 throw 제거 가능
     throw;
 }
 
@@ -63,11 +86,11 @@ catch (Exception ex)
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error");
-    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     app.UseHsts();
 }
 
 app.UseHttpsRedirection();
+app.UseStaticFiles();
 
 app.UseRouting();
 
@@ -75,11 +98,8 @@ app.UseMiddleware<UserAuthMiddleware>();
 
 app.UseAuthorization();
 
-// API 요청을 처리할 컨트롤러 등록
 app.MapControllers();
-
 app.MapStaticAssets();
-app.MapRazorPages()
-   .WithStaticAssets();
+app.MapRazorPages().WithStaticAssets();
 
 app.Run();

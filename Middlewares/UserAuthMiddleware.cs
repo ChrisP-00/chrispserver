@@ -22,8 +22,6 @@ public class UserAuthMiddleware
 
     public async Task InvokeAsync(HttpContext context)
     {
-        Console.WriteLine("진입");
-
         // account/LoginOrCreateAccount 요청은 넘기기
         if (context.Request.Method != HttpMethods.Post ||
             context.Request.Path.Value?.StartsWith("/Account/LoginOrCreateAccount", StringComparison.OrdinalIgnoreCase) == true)
