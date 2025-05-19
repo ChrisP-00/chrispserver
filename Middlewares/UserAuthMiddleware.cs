@@ -3,7 +3,6 @@ using chrispserver.Securities;
 using System.Net;
 using System.Text;
 using System.Text.Json;
-using static Humanizer.In;
 
 namespace chrispserver.Middlewares;
 
@@ -24,7 +23,8 @@ public class UserAuthMiddleware
     {
         // account/LoginOrCreateAccount 요청은 넘기기
         if (context.Request.Method != HttpMethods.Post ||
-            context.Request.Path.Value?.StartsWith("/Account/LoginOrCreateAccount", StringComparison.OrdinalIgnoreCase) == true)
+            context.Request.Path.Value?.StartsWith("/Account/LoginOrCreateAccount", StringComparison.OrdinalIgnoreCase) == true ||
+            context.Request.Path.Value?.StartsWith("/Test/CheckMissionCount", StringComparison.OrdinalIgnoreCase) == true)
         {
             await _nextTask(context);
             return;

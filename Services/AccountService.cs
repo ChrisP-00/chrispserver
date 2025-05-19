@@ -2,9 +2,9 @@
 using chrispserver.DbConfigurations;
 using chrispserver.ResReqModels;
 using chrispserver.Securities;
-using MySqlConnector;
+using chrispserver.Utilities;
 using SqlKata.Execution;
-using System.Diagnostics;
+using System.Data.Common;
 using static chrispserver.DbEntity.InfoEntities;
 using static chrispserver.DbEntity.UserEntities;
 using static chrispserver.ResReqModels.Request;
@@ -117,25 +117,26 @@ public class AccountService : IAccount
             }
             Console.WriteLine($"user index : {userIndex} ");
 
-            // 2. UserCharacter 생성
-            int insertedCharacter = await CreateDefaultCharacterAsync(userIndex, db, transaction);
-            if (insertedCharacter <= 0)
-            {
-                Console.WriteLine("[CreateAccount] UserCharacter 삽입 실패");
-                return Result.Fail(ResultCodes.Create_Account_Fail_Exception);
-            }
+            //// 2. UserCharacter 생성
+            //int insertedCharacter = await CreateDefaultCharacterAsync(userIndex, db, transaction);
+            //if (insertedCharacter <= 0)
+            //{
+            //    Console.WriteLine("[CreateAccount] UserCharacter 삽입 실패");
+            //    return Result.Fail(ResultCodes.Create_Account_Fail_Exception);
+            //}
 
-            // 3. UserGoods 생성
-            await CreateInitialGoodsAsync(userIndex, db, transaction);
+            //// 3. UserGoods 생성
+            //await CreateInitialGoodsAsync(userIndex, db, transaction);
 
-            // 4. 일일 미션 생성
-            await CreateUserMissionsAsync(userIndex, db, transaction);
+            //// 4. 일일 미션 생성
+            //await CreateUserMissionsAsync(userIndex, db, transaction);
 
             return Result.Success();
         });
 
         if (transactionResult.ResultCode != ResultCodes.Ok)
         {
+            LogManager.Warn("계정 생성 실패");
             return Result.Fail(transactionResult.ResultCode);
         }
 
@@ -335,7 +336,7 @@ public class AccountService : IAccount
         return string.IsNullOrWhiteSpace(requestBody.Nickname) ? define?.Description ?? "졸리" : requestBody.Nickname;
     }
 
-    private async Task<int> CreateUserAccountAsync(Req_CreateAccount requestBody, string nickName, QueryFactory db, MySqlTransaction transaction)
+    private async Task<int> CreateUserAccountAsync(Req_CreateAccount requestBody, string nickName, QueryFactory db, DbTransaction transaction)
     {
         string? memberId = string.IsNullOrWhiteSpace(requestBody.MemberId) ? requestBody.DeviceId : requestBody.MemberId;
 
@@ -347,7 +348,7 @@ public class AccountService : IAccount
         }, transaction);
     }
 
-    private async Task<int> CreateDefaultCharacterAsync(int userIndex, QueryFactory db, MySqlTransaction transaction)
+    private async Task<int> CreateDefaultCharacterAsync(int userIndex, QueryFactory db, DbTransaction transaction)
     {
         return await db.Query(TableNames.UserCharacter).InsertAsync(new
         {
@@ -356,7 +357,7 @@ public class AccountService : IAccount
         }, transaction);
     }
 
-    private async Task CreateInitialGoodsAsync(int userIndex, QueryFactory db, MySqlTransaction transaction)
+    private async Task CreateInitialGoodsAsync(int userIndex, QueryFactory db, DbTransaction transaction)
     {
         int food = _masterHandler.GetDefaultValueOrDefault(DefaultFoodIndex, 5, "Food");
         int toy = _masterHandler.GetDefaultValueOrDefault(DefaultToyIndex, 5, "Toy");
@@ -379,7 +380,7 @@ public class AccountService : IAccount
         }
     }
 
-    private async Task CreateUserMissionsAsync(int userIndex, QueryFactory db, MySqlTransaction transaction)
+    private async Task CreateUserMissionsAsync(int userIndex, QueryFactory db, DbTransaction transaction)
     {
         List<InfoDailyMission>? missions = _masterHandler.GetAll<InfoDailyMission>();
         if (missions == null || missions.Count == 0)
@@ -404,6 +405,5 @@ public class AccountService : IAccount
             }
         }
     }
-
     #endregion
 }

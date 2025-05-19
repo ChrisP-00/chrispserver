@@ -51,7 +51,7 @@ public class UserEntities
     {
         public int User_Index { get; set; }
         public int Daily_Mission_Index { get; set; }
-        public int Mission_Gaol_Count { get; set; }
+        public int Mission_Goal_Count { get; set; }
         public int Mission_Progress { get; set; }
         public bool Is_Received { get; set; }
         public DateTime Updated_At { get; set; }

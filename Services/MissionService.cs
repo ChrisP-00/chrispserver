@@ -1,7 +1,7 @@
 ﻿using chrispserver.DbConfigurations;
 using chrispserver.ResReqModels;
-using MySqlConnector;
 using SqlKata.Execution;
+using System.Data.Common;
 using static chrispserver.DbEntity.InfoEntities;
 using static chrispserver.ResReqModels.Request;
 
@@ -17,7 +17,7 @@ public class MissionService : IMission
         _connectionManager = connectionManager;
     }
 
-    public async Task<Result> UpdateMissionProcessAsync(Req_PlayStatus requestBody, QueryFactory db, MySqlTransaction transaction)
+    public async Task<Result> UpdateMissionProcessAsync(Req_PlayStatus requestBody, QueryFactory db, DbTransaction transaction)
     {
         var hasDailyMissions = await db.Query(TableNames.UserDailyMission)
                         .Where(DbColumns.UserIndex, requestBody.UserIndex)

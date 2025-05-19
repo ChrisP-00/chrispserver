@@ -1,7 +1,8 @@
 ﻿using chrispserver.DbConfigurations;
 using chrispserver.ResReqModels;
-using MySqlConnector;
+using Microsoft.Data.SqlClient;
 using SqlKata.Execution;
+using System.Data.Common;
 using static chrispserver.DbEntity.InfoEntities;
 using static chrispserver.DbEntity.UserEntities;
 using static chrispserver.ResReqModels.Request;
@@ -316,7 +317,7 @@ public class CharacterService : ICharacter
         });
     }
 
-    public async Task<Result> UseGoodsAsync(Req_PlayStatus requestBody, QueryFactory db, MySqlTransaction transaction)
+    public async Task<Result> UseGoodsAsync(Req_PlayStatus requestBody, QueryFactory db, DbTransaction  transaction)
     {
         UserGoods userGoods = await db.Query(TableNames.UserGoods)
                 .Where(DbColumns.UserIndex, requestBody.UserIndex)
@@ -345,7 +346,7 @@ public class CharacterService : ICharacter
         return Result.Success();
     }
 
-    public async Task<Result> UpdateCharacterExpAsync(Req_Exp requestBody, QueryFactory db, MySqlTransaction transaction)
+    public async Task<Result> UpdateCharacterExpAsync(Req_Exp requestBody, QueryFactory db, DbTransaction  transaction)
     {
         UserCharacter? character = await db.Query(TableNames.UserCharacter)
           .Where(DbColumns.UserIndex, requestBody.UserIndex)
@@ -401,7 +402,7 @@ public class CharacterService : ICharacter
 
     #region 내부 함수
 
-    private async Task<UserCharacter?> EquipLastActivatedCharacterAsync(QueryFactory db, IUserAuth requestBody, MySqlTransaction? transaction = null)
+    private async Task<UserCharacter?> EquipLastActivatedCharacterAsync(QueryFactory db, IUserAuth requestBody, DbTransaction ? transaction = null)
     {
         Console.WriteLine("[Character] 캐릭터 비활성화 오류 : 현재 활성화된 캐릭터가 없음");
 
