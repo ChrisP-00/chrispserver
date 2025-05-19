@@ -42,16 +42,14 @@ public class UserAuthMiddleware
         Console.WriteLine($"pased data: {parsed.DeviceId}");
 
         var authUser = await _redisAuthService.GetAuthUserByTokenAsync(parsed.Token);
-        if (authUser == null ||
-            (!authUser.IsGuest && authUser.MemberId != parsed.MemberId) ||
-            (authUser.IsGuest && authUser.DeviceId != parsed.DeviceId))
+        if (authUser == null)
         {
-            await RespondError(context, authUser?.IsGuest == true ? ResultCodes.AuthTokenFailWrongGuestAuthToken : ResultCodes.AuthTokenFailWrongUserAuthToken);
+            await RespondError(context, ResultCodes.AuthTokenFailWrongUserAuthToken);
             return;
         }
 
         // 중복 로그인 확인 (유저만)
-        if (!authUser.IsGuest && authUser.DeviceId != parsed.DeviceId)
+        if (authUser.MemberId != authUser.DeviceId && authUser.DeviceId != parsed.DeviceId)
         {
             await RespondError(context, ResultCodes.AuthTokenFailDuplicatedLogin);
             return;
@@ -59,7 +57,7 @@ public class UserAuthMiddleware
 
         await _redisAuthService.ExtendTTLAsync(authUser);
 
-        var lockKey = MemoryDbKeyMaker.MakeUserLockKey(authUser.IsGuest ? authUser.DeviceId : authUser.MemberId!);
+        var lockKey = MemoryDbKeyMaker.MakeUserLockKey(authUser.MemberId!);
         if (!await _memoryDB.SetUserReqLockAsync(lockKey))
         {
             await RespondError(context, ResultCodes.AuthTokenFailSetNx);
@@ -152,7 +150,6 @@ public class UserAuthMiddleware
             MemberId = memberId ?? "",
             DeviceId = deviceId,
             AuthToken = token,
-            IsGuest = isGuest,
         };
     }
 

@@ -69,13 +69,20 @@ public class ConnectionManager : IDisposable
             return Result.Fail(ResultCodes.Transaction_Fail_ConnectionStringNull);
         }
 
+
+
         await using var connection = new SqlConnection(connectionString);
         await connection.OpenAsync();
         Console.WriteLine($"[Transaction] 연결 열림: {dbName} (트랜잭션 시작)");
 
         await using var transaction = await connection.BeginTransactionAsync();
         // 트랜잭션을 명시적으로 지정함!
-        var queryFactory = new QueryFactory(connection, new MySqlCompiler());
+        //var queryFactory = new QueryFactory(connection, new SqlServerCompiler());
+
+        var queryFactory = new QueryFactory(connection, new SqlServerCompiler())
+        {
+            Logger = compiled => Console.WriteLine($"[SQLKata] {compiled.ToString()}")
+        };
 
         try
         {
@@ -115,7 +122,7 @@ public class ConnectionManager : IDisposable
         Console.WriteLine($"[Transaction<T>] 연결 열림: {dbName} (트랜잭션 시작)");
 
         await using var transaction = await connection.BeginTransactionAsync();
-        var queryFactory = new QueryFactory(connection, new MySqlCompiler());
+        var queryFactory = new QueryFactory(connection, new SqlServerCompiler());
 
         try
         {

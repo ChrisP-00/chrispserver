@@ -117,19 +117,19 @@ public class AccountService : IAccount
             }
             Console.WriteLine($"user index : {userIndex} ");
 
-            //// 2. UserCharacter 생성
-            //int insertedCharacter = await CreateDefaultCharacterAsync(userIndex, db, transaction);
-            //if (insertedCharacter <= 0)
-            //{
-            //    Console.WriteLine("[CreateAccount] UserCharacter 삽입 실패");
-            //    return Result.Fail(ResultCodes.Create_Account_Fail_Exception);
-            //}
+            // 2. UserCharacter 생성
+            int insertedCharacter = await CreateDefaultCharacterAsync(userIndex, db, transaction);
+            if (insertedCharacter <= 0)
+            {
+                Console.WriteLine("[CreateAccount] UserCharacter 삽입 실패");
+                return Result.Fail(ResultCodes.Create_Account_Fail_Exception);
+            }
 
-            //// 3. UserGoods 생성
-            //await CreateInitialGoodsAsync(userIndex, db, transaction);
+            // 3. UserGoods 생성
+            await CreateInitialGoodsAsync(userIndex, db, transaction);
 
-            //// 4. 일일 미션 생성
-            //await CreateUserMissionsAsync(userIndex, db, transaction);
+            // 4. 일일 미션 생성
+            await CreateUserMissionsAsync(userIndex, db, transaction);
 
             return Result.Success();
         });
@@ -340,12 +340,32 @@ public class AccountService : IAccount
     {
         string? memberId = string.IsNullOrWhiteSpace(requestBody.MemberId) ? requestBody.DeviceId : requestBody.MemberId;
 
-        return await db.Query(TableNames.UserAccount).InsertGetIdAsync<int>(new
-        {
-            Member_id = memberId,
-            Device_id = requestBody.DeviceId,
-            Nickname = nickName
-        }, transaction);
+        //return await db.Query(TableNames.UserAccount).InsertGetIdAsync<int>(new
+        //{
+        //    Member_id = memberId,
+        //    Device_id = requestBody.DeviceId,
+        //    Nickname = nickName
+        //}, transaction);
+
+        var insertQuery = db.Query(TableNames.UserAccount)
+            .AsInsert(new
+            {
+                Member_id = memberId,
+                Device_id = requestBody.DeviceId,
+                Nickname = nickName
+            });
+
+        Console.WriteLine($"[DEBUG INSERT SQL] {insertQuery.ToString()}");
+
+        int userIndex = await db.Query(TableNames.UserAccount)
+            .InsertGetIdAsync<int>(new
+            {
+                Member_id = memberId,
+                Device_id = requestBody.DeviceId,
+                Nickname = nickName
+            }, transaction);
+
+        return userIndex;
     }
 
     private async Task<int> CreateDefaultCharacterAsync(int userIndex, QueryFactory db, DbTransaction transaction)
