@@ -1,8 +1,9 @@
 ﻿using chrispserver.ResReqModels;
-using MySqlConnector;
+using Microsoft.Data.SqlClient;
 using SqlKata.Compilers;
 using SqlKata.Execution;
 using System.Collections.Concurrent;
+using System.Data.Common;
 
 namespace chrispserver.DbConfigurations;
 
@@ -22,7 +23,7 @@ public class ConnectionManager : IDisposable
     }
 
     /// <summary>
-    /// MySQL 연결을 생성하여 QueryFactory를 반환
+    /// MSSQL 연결을 생성하여 QueryFactory를 반환
     /// </summary>
     private QueryFactory CreateQueryFactory(string dbName)
     {
@@ -31,8 +32,9 @@ public class ConnectionManager : IDisposable
             throw new InvalidOperationException($"[ERROR] Connection string for {dbName} is missing or invalid.");
         }
 
-        var connection = new MySqlConnection(connectionString);
-        var compiler = new MySqlCompiler();
+        var connection = new SqlConnection(connectionString);
+        var compiler = new SqlServerCompiler();
+
 
         Console.WriteLine($"[ConnectionManager] 새로운 연결 생성됨: {dbName}");
         return new QueryFactory(connection, compiler)
@@ -60,24 +62,31 @@ public class ConnectionManager : IDisposable
     /// <summary>
     /// 주어진 데이터베이스에서 트랜잭션 실행
     /// </summary>
-    public async Task<Result> ExecuteInTransactionAsync(string dbName, Func<QueryFactory, MySqlTransaction, Task<Result>> action)
+    public async Task<Result> ExecuteInTransactionAsync(string dbName, Func<QueryFactory, DbTransaction, Task<Result>> action)
     {
         if (!_connectionStrings.TryGetValue(dbName, out var connectionString) || string.IsNullOrEmpty(connectionString))
         {
             return Result.Fail(ResultCodes.Transaction_Fail_ConnectionStringNull);
         }
 
-        await using var connection = new MySqlConnection(connectionString);
+
+
+        await using var connection = new SqlConnection(connectionString);
         await connection.OpenAsync();
         Console.WriteLine($"[Transaction] 연결 열림: {dbName} (트랜잭션 시작)");
 
         await using var transaction = await connection.BeginTransactionAsync();
         // 트랜잭션을 명시적으로 지정함!
-        var queryFactory = new QueryFactory(connection, new MySqlCompiler());
+        //var queryFactory = new QueryFactory(connection, new SqlServerCompiler());
+
+        var queryFactory = new QueryFactory(connection, new SqlServerCompiler())
+        {
+            Logger = compiled => Console.WriteLine($"[SQLKata] {compiled.ToString()}")
+        };
 
         try
         {
-            var result = await action(queryFactory, (MySqlTransaction)transaction);
+            var result = await action(queryFactory, transaction);
 
             if (result.ResultCode != ResultCodes.Ok)
             {
@@ -101,23 +110,23 @@ public class ConnectionManager : IDisposable
         }
     }
 
-    public async Task<Result<T>> ExecuteInTransactionAsync<T>(string dbName, Func<QueryFactory, MySqlTransaction, Task<Result<T>>> action)
+    public async Task<Result<T>> ExecuteInTransactionAsync<T>(string dbName, Func<QueryFactory, DbTransaction, Task<Result<T>>> action)
     {
         if (!_connectionStrings.TryGetValue(dbName, out var connectionString) || string.IsNullOrEmpty(connectionString))
         {
             return Result<T>.Fail(ResultCodes.Transaction_Fail_ConnectionStringNull);
         }
 
-        await using var connection = new MySqlConnection(connectionString);
+        await using var connection = new SqlConnection(connectionString);
         await connection.OpenAsync();
         Console.WriteLine($"[Transaction<T>] 연결 열림: {dbName} (트랜잭션 시작)");
 
         await using var transaction = await connection.BeginTransactionAsync();
-        var queryFactory = new QueryFactory(connection, new MySqlCompiler());
+        var queryFactory = new QueryFactory(connection, new SqlServerCompiler());
 
         try
         {
-            var result = await action(queryFactory, (MySqlTransaction)transaction);
+            var result = await action(queryFactory, transaction);
 
             if (result.ResultCode != ResultCodes.Ok)
             {

@@ -6,8 +6,6 @@ public interface IRedisAuthService
 {
     Task<string> GenerateTokenAsync(string memberId, string deviceId);
 
-    Task<string> GenerateGuestTokenAsync(string deviceId);
-
     Task<AuthUser?> GetAuthUserByTokenAsync(string token);
 
     Task<string?> GetTokenByIdAsync(string id, bool isGuest);

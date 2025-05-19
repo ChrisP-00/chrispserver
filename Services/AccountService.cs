@@ -2,9 +2,9 @@
 using chrispserver.DbConfigurations;
 using chrispserver.ResReqModels;
 using chrispserver.Securities;
-using MySqlConnector;
+using chrispserver.Utilities;
 using SqlKata.Execution;
-using System.Diagnostics;
+using System.Data.Common;
 using static chrispserver.DbEntity.InfoEntities;
 using static chrispserver.DbEntity.UserEntities;
 using static chrispserver.ResReqModels.Request;
@@ -136,6 +136,7 @@ public class AccountService : IAccount
 
         if (transactionResult.ResultCode != ResultCodes.Ok)
         {
+            LogManager.Warn("계정 생성 실패");
             return Result.Fail(transactionResult.ResultCode);
         }
 
@@ -335,19 +336,39 @@ public class AccountService : IAccount
         return string.IsNullOrWhiteSpace(requestBody.Nickname) ? define?.Description ?? "졸리" : requestBody.Nickname;
     }
 
-    private async Task<int> CreateUserAccountAsync(Req_CreateAccount requestBody, string nickName, QueryFactory db, MySqlTransaction transaction)
+    private async Task<int> CreateUserAccountAsync(Req_CreateAccount requestBody, string nickName, QueryFactory db, DbTransaction transaction)
     {
         string? memberId = string.IsNullOrWhiteSpace(requestBody.MemberId) ? requestBody.DeviceId : requestBody.MemberId;
 
-        return await db.Query(TableNames.UserAccount).InsertGetIdAsync<int>(new
-        {
-            Member_id = memberId,
-            Device_id = requestBody.DeviceId,
-            Nickname = nickName
-        }, transaction);
+        //return await db.Query(TableNames.UserAccount).InsertGetIdAsync<int>(new
+        //{
+        //    Member_id = memberId,
+        //    Device_id = requestBody.DeviceId,
+        //    Nickname = nickName
+        //}, transaction);
+
+        var insertQuery = db.Query(TableNames.UserAccount)
+            .AsInsert(new
+            {
+                Member_id = memberId,
+                Device_id = requestBody.DeviceId,
+                Nickname = nickName
+            });
+
+        Console.WriteLine($"[DEBUG INSERT SQL] {insertQuery.ToString()}");
+
+        int userIndex = await db.Query(TableNames.UserAccount)
+            .InsertGetIdAsync<int>(new
+            {
+                Member_id = memberId,
+                Device_id = requestBody.DeviceId,
+                Nickname = nickName
+            }, transaction);
+
+        return userIndex;
     }
 
-    private async Task<int> CreateDefaultCharacterAsync(int userIndex, QueryFactory db, MySqlTransaction transaction)
+    private async Task<int> CreateDefaultCharacterAsync(int userIndex, QueryFactory db, DbTransaction transaction)
     {
         return await db.Query(TableNames.UserCharacter).InsertAsync(new
         {
@@ -356,7 +377,7 @@ public class AccountService : IAccount
         }, transaction);
     }
 
-    private async Task CreateInitialGoodsAsync(int userIndex, QueryFactory db, MySqlTransaction transaction)
+    private async Task CreateInitialGoodsAsync(int userIndex, QueryFactory db, DbTransaction transaction)
     {
         int food = _masterHandler.GetDefaultValueOrDefault(DefaultFoodIndex, 5, "Food");
         int toy = _masterHandler.GetDefaultValueOrDefault(DefaultToyIndex, 5, "Toy");
@@ -379,7 +400,7 @@ public class AccountService : IAccount
         }
     }
 
-    private async Task CreateUserMissionsAsync(int userIndex, QueryFactory db, MySqlTransaction transaction)
+    private async Task CreateUserMissionsAsync(int userIndex, QueryFactory db, DbTransaction transaction)
     {
         List<InfoDailyMission>? missions = _masterHandler.GetAll<InfoDailyMission>();
         if (missions == null || missions.Count == 0)
@@ -404,6 +425,5 @@ public class AccountService : IAccount
             }
         }
     }
-
     #endregion
 }
