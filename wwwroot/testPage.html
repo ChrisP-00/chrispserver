@@ -1,91 +1,167 @@
 ﻿<!DOCTYPE html>
 <html lang="ko">
 <head>
-    <meta charset="UTF-8">
+    <meta charset="UTF-8" />
     <title>ChrispServer API 테스트</title>
 </head>
 <body>
     <h1>🌱 ChrispServer API 테스트</h1>
 
+    <!-- 로그인 -->
     <h2>1. 로그인 또는 계정 생성</h2>
     <input id="deviceId" placeholder="DeviceId" />
     <input id="memberId" placeholder="MemberId (선택)" />
     <input id="nickname" placeholder="Nickname (선택)" />
     <button onclick="login()">Login</button>
 
-    <h2>2. 캐릭터 장착</h2>
-    <input id="characterIndex" placeholder="EquipCharacterIndex" />
-    <button onclick="equipCharacter()">Equip Character</button>
+    <!-- 유저 정보 -->
+    <h2>2. 유저 요약 정보</h2>
+    <div id="userSummary" style="background:#eef;padding:1em;"></div>
 
-    <h2>3. 미션 보상 수령</h2>
+    <!-- 마스터 캐릭터 드롭다운 -->
+    <h3>🧍 전체 캐릭터 선택 (마스터 DB)</h3>
+    <select id="selectCharacter" style="min-width: 200px;"></select>
+    <button onclick="equipSelectedCharacter()">장착하기</button>
+
+    <!-- 미션 보상 -->
+    <h3>🎯 미션 보상 수령</h3>
     <input id="missionIndex" placeholder="DailyMissionIndex" />
     <button onclick="receiveMission()">Receive Mission</button>
 
-    <h2>결과</h2>
+    <!-- 행동 -->
+    <h2>3. 행동 (밥주기/놀기)</h2>
+    <button onclick="playStatus(1, 1, 1)">🍚 밥 주기 (Food)</button>
+    <button onclick="playStatus(2, 2, 1)">🧸 놀기 (Toy)</button>
+
+    <!-- 결과 -->
+    <h2>4. 결과</h2>
     <pre id="result" style="background:#f4f4f4;padding:1em;"></pre>
 
     <script>
-    let token = "";
-    let deviceId = "";
-    let userIndex = 0;
+        let token = "";
+        let deviceId = "";
+        let userIndex = 0;
+        let currentUser = null;
+        let masterCharacters = [];
 
-    const apiBase = "https://localhost:7113";
+        // Azure에 배포된 API 엔드포인트
+        const apiBase = "https://chrispserver-api-g4h3hsaed5dtaeeh.koreacentral-01.azurewebsites.net";
 
-    function updateResult(obj) {
-      document.getElementById("result").textContent = JSON.stringify(obj, null, 2);
-    }
+        // 결과 출력
+        function updateResult(obj) {
+            document.getElementById("result").textContent = JSON.stringify(obj, null, 2);
+        }
 
-    async function login() {
-      deviceId = document.getElementById("deviceId").value;
-      const memberId = document.getElementById("memberId").value;
-      const nickname = document.getElementById("nickname").value;
+        // 유저 요약 정보 출력
+        function showUserSummary() {
+            if (!currentUser) return;
 
-      const res = await fetch(`${apiBase}/Account/LoginOrCreateAccount`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ DeviceId: deviceId, MemberId: memberId, Nickname: nickname })
-      });
+            const summaryEl = document.getElementById("userSummary");
+            summaryEl.innerHTML = `
+            <strong>닉네임:</strong> ${currentUser.userAccount?.nickname}<br/>
+            <strong>UserIndex:</strong> ${userIndex}<br/>
+            <strong>재화:</strong><br/>
+            ${currentUser.userGoods?.map(g => `- Goods ${g.goods_Index}: ${g.quantity}`).join("<br/>") || "없음"}
+          `;
+        }
 
-      const json = await res.json();
-      updateResult(json);
+        // 로그인 또는 계정 생성
+        async function login() {
+            deviceId = document.getElementById("deviceId").value;
+            const memberId = document.getElementById("memberId").value;
+            const nickname = document.getElementById("nickname").value;
 
-      token = json.data?.token || "";
-      userIndex = json.data?.userAccount?.user_Index || 0;
-    }
+            const res = await fetch(`${apiBase}/Account/LoginOrCreateAccount`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ DeviceId: deviceId, MemberId: memberId, Nickname: nickname })
+            });
 
-    async function equipCharacter() {
-      const characterIndex = parseInt(document.getElementById("characterIndex").value);
+            const json = await res.json();
+            updateResult(json);
 
-      const res = await fetch(`${apiBase}/Character/EquipCharacter`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": "Bearer " + token,
-          "X-Device-Id": deviceId
-        },
-        body: JSON.stringify({ UserIndex: userIndex, EquipCharacterIndex: characterIndex })
-      });
+            token = json.data?.token || "";
+            userIndex = json.data?.userAccount?.user_Index || 0;
+            currentUser = json.data;
 
-      const json = await res.json();
-      updateResult(json);
-    }
+            showUserSummary();
+            await fetchMasterCharacters(); // 마스터 캐릭터 목록 가져오기
+        }
 
-    async function receiveMission() {
-      const missionIndex = parseInt(document.getElementById("missionIndex").value);
+        // 마스터DB의 캐릭터 리스트 가져와서 드롭다운에 렌더링
+        async function fetchMasterCharacters() {
+            const res = await fetch(`${apiBase}/Test/Characters`);
+            const json = await res.json();
+            masterCharacters = json.data || [];
 
-      const res = await fetch(`${apiBase}/Reward/ReceiveMission`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": "Bearer " + token,
-          "X-Device-Id": deviceId
-        },
-        body: JSON.stringify({ UserIndex: userIndex, DailyMissionIndex: missionIndex })
-      });
+            const select = document.getElementById("selectCharacter");
+            select.innerHTML = "";
 
-      const json = await res.json();
-      updateResult(json);
-    }
+            for (const char of masterCharacters) {
+                const option = document.createElement("option");
+                option.value = char.character_Index;
+                option.textContent = `#${char.character_Index} - ${char.character_Name}`;
+                select.appendChild(option);
+            }
+        }
+
+        // 선택된 캐릭터 장착하기
+        async function equipSelectedCharacter() {
+            const selectedIndex = parseInt(document.getElementById("selectCharacter").value);
+
+            const res = await fetch(`${apiBase}/Character/EquipCharacter`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": "Bearer " + token,
+                    "X-Device-Id": deviceId
+                },
+                body: JSON.stringify({ UserIndex: userIndex, EquipCharacterIndex: selectedIndex })
+            });
+
+            const json = await res.json();
+            updateResult(json);
+            await login(); // 장착 후 정보 갱신
+        }
+
+        // 미션 보상 수령
+        async function receiveMission() {
+            const missionIndex = parseInt(document.getElementById("missionIndex").value);
+
+            const res = await fetch(`${apiBase}/Reward/ReceiveMission`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": "Bearer " + token,
+                    "X-Device-Id": deviceId
+                },
+                body: JSON.stringify({ UserIndex: userIndex, DailyMissionIndex: missionIndex })
+            });
+
+            const json = await res.json();
+            updateResult(json);
+        }
+
+        // 행동 API 호출 (밥 주기 / 놀기)
+        async function playStatus(goodType, goodsIndex, quantity) {
+            const res = await fetch(`${apiBase}/Character/PlayStatus`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": "Bearer " + token,
+                    "X-Device-Id": deviceId
+                },
+                body: JSON.stringify({
+                    UserIndex: userIndex,
+                    GoodType: goodType,
+                    GoodsIndex: goodsIndex,
+                    Quantity: quantity
+                })
+            });
+
+            const json = await res.json();
+            updateResult(json);
+        }
     </script>
 </body>
 </html>

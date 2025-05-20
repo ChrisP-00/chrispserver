@@ -19,7 +19,7 @@ public class InfoEntities
     public class InfoCharacter
     {
         public int Character_Index { get; set; }
-        public string? Name { get; set; }
+        public string? Character_Name { get; set; }
     }
 
 

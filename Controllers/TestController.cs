@@ -29,4 +29,11 @@ public class TestController : ControllerBase
             count = missions?.Count ?? 0
         });
     }
+
+    [HttpGet("Characters")]
+    public IActionResult GetCharacters()
+    {
+        var characters = _masterHandler.GetAll<InfoCharacter>() ?? new();
+        return Ok(new { data = characters });
+    }
 }
