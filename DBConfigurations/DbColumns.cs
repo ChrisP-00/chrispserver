@@ -6,7 +6,7 @@ public static class DbColumns
     /// <summary> 수량 </summary>
     public const string Quantity = "quantity";
     /// <summary> 명칭 </summary>
-    public const string Name = "name";
+    //public const string Name = "name";
     /// <summary> 설명 </summary>
     public const string Description = "description";
     /// <summary> 값 </summary>
@@ -61,6 +61,8 @@ public static class DbColumns
     #region 캐릭터 테이블 컬럼
     /// <summary> 캐릭터 인덱스 </summary>
     public const string CharacterIndex = "character_index";
+    /// <summary> 캐릭터 이름 </summary>
+    public const string CharacterName = "character_name";
     /// <summary> 캐릭터 레벨 </summary>
     public const string CharacterLevel = "level";
     /// <summary> 캐릭터 인덱스 </summary>

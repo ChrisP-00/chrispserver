@@ -296,7 +296,7 @@ public class AccountService : IAccount
                     Level = c.Level,
                     Exp = c.Exp,
                     Is_Active = c.Is_Active,
-                    is_acquired = c.Is_acquired
+                    is_acquired = c.Is_Acquired
                 }).ToList(),
                 UserInventories = userInventories.Select(c => new User_Inventory
                 {
@@ -333,7 +333,7 @@ public class AccountService : IAccount
     private string GetDefaultNickname(Req_CreateAccount requestBody)
     {
         var define = _masterHandler.GetInfoDataByIndex<InfoDefine>(NicknameDefineIndex);
-        return string.IsNullOrWhiteSpace(requestBody.Nickname) ? define?.Description ?? "졸리" : requestBody.Nickname;
+        return string.IsNullOrWhiteSpace(requestBody.Nickname) ? define?.Description ?? "주인님" : requestBody.Nickname;
     }
 
     private async Task<int> CreateUserAccountAsync(Req_CreateAccount requestBody, string nickName, QueryFactory db, DbTransaction transaction)
@@ -373,7 +373,8 @@ public class AccountService : IAccount
         return await db.Query(TableNames.UserCharacter).InsertAsync(new
         {
             user_index = userIndex,
-            character_index = 1
+            character_index = 1,
+            is_active = true,
         }, transaction);
     }
 

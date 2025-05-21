@@ -20,7 +20,7 @@ builder.Services.AddSingleton<IConnectionMultiplexer?>(provider =>
     {
         try
         {
-            Console.WriteLine($"[Redis] 연결 시도: {redisConfig}");
+            Console.WriteLine($"[Redis] 연결 시도");
             return ConnectionMultiplexer.Connect(redisConfig);
         }
         catch (Exception ex)

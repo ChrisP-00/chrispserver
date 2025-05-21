@@ -20,7 +20,7 @@ public class UserEntities
         public int Level { get; set; }
         public int Exp { get; set; }
         public bool Is_Active { get; set; }
-        public bool Is_acquired { get; set; }
+        public bool Is_Acquired { get; set; }
         public DateTime Equipped_At { get; set; }
         public DateTime Acquired_At { get; set; }
     }
