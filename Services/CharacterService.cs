@@ -31,7 +31,7 @@ public class CharacterService : ICharacter
     #region 캐릭터, 아이템 장탈착 기능
     public async Task<Result> EquipCharacterAsync(Req_EquipCharacter requestBody)
     {
-        if (_masterHandler.IsValid<InfoCharacter>(requestBody.EquipCharacterIndex))
+        if (!_masterHandler.IsValid<InfoCharacter>(requestBody.EquipCharacterIndex))
         {
             Console.WriteLine($"Db에 존재하지 않는 캐릭터 인덱스 : {requestBody.EquipCharacterIndex}");
             Result.Fail(ResultCodes.Equip_Fail_CharacterNotExist);
@@ -50,20 +50,6 @@ public class CharacterService : ICharacter
             {
                 Console.WriteLine($"[Character] 캐릭터 장착 실패 : {currentCharacter.Character_Index}는 이미 활성화된 캐릭터");
                 return Result.Fail(ResultCodes.Equip_Fail_CharacterAlreadyEquipped);
-            }
-
-            // 요청한 캐릭터를 처음 장착할 경우
-            if (currentCharacter == null)
-            {
-                UserCharacter newCharacter = new UserCharacter
-                {
-                    User_Index = requestBody.UserIndex,
-                    Character_Index = requestBody.EquipCharacterIndex
-                };
-
-                await gameDb.Query(TableNames.UserCharacter).InsertAsync(newCharacter);
-
-                currentCharacter = newCharacter;
             }
 
             int resetLevel = _masterHandler.GetDefaultValueOrDefault(5, 5, "Level Reset");
@@ -86,45 +72,72 @@ public class CharacterService : ICharacter
                      .Where(DbColumns.IsActive, true)
                      .FirstOrDefaultAsync<UserCharacter>();
 
-            // 기존에 활성화 되어있는 캐릭터 레벨 확인 및 초기화
-            if (currentActivatedCharacter.Level >= resetLevel)
+            if (currentActivatedCharacter != null)
             {
-                var otherActiveCharacters = await gameDb.Query(TableNames.UserCharacter)
-                        .Where(DbColumns.UserIndex, requestBody.UserIndex)
-                        .Where(DbColumns.IsActive, true)
-                        .UpdateAsync(new
-                        {
-                            Is_Active = false
-                        });
+                // 기존에 활성화 되어있는 캐릭터 레벨 확인 및 초기화
+                if (currentActivatedCharacter.Level >= resetLevel)
+                {
+                    var otherActiveCharacters = await gameDb.Query(TableNames.UserCharacter)
+                            .Where(DbColumns.UserIndex, requestBody.UserIndex)
+                            .Where(DbColumns.IsActive, true)
+                            .UpdateAsync(new
+                            {
+                                Is_Active = false
+                            });
+                }
+                else
+                {
+                    var otherActiveCharacters = await gameDb.Query(TableNames.UserCharacter)
+                            .Where(DbColumns.UserIndex, requestBody.UserIndex)
+                            .Where(DbColumns.IsActive, true)
+                            .UpdateAsync(new
+                            {
+                                Is_Active = false,
+                                Level = defaultLevel,
+                                EXP = defaultEXP,
+                            });
+                }
+            }
+
+
+            var today = DateTime.Now;
+
+            // 요청한 캐릭터를 처음 장착할 경우
+            if (currentCharacter == null)
+            {
+                UserCharacter newCharacter = new UserCharacter
+                {
+                    User_Index = requestBody.UserIndex,
+                    Character_Index = requestBody.EquipCharacterIndex,
+                    Level = 1,
+                    Exp = 0,
+                    Is_Active = true,
+                    Is_Acquired = false,
+                    Equipped_At = today,
+                    Acquired_At = today
+                };
+
+                await gameDb.Query(TableNames.UserCharacter).InsertAsync(newCharacter);
+                currentCharacter = newCharacter;
             }
             else
             {
-                var otherActiveCharacters = await gameDb.Query(TableNames.UserCharacter)
-                        .Where(DbColumns.UserIndex, requestBody.UserIndex)
-                        .Where(DbColumns.IsActive, true)
-                        .UpdateAsync(new
-                        {
-                            Is_Active = false,
-                            Level = defaultLevel,
-                            EXP = defaultEXP,
-                        });
+                await gameDb.Query(TableNames.UserCharacter)
+                    .Where(DbColumns.UserIndex, requestBody.UserIndex)
+                    .Where(DbColumns.CharacterIndex, requestBody.EquipCharacterIndex)
+                    .UpdateAsync(new
+                    {
+                        Is_Active = true,
+                        Equipped_At = today
+                    });
             }
-
-            var today = DateTime.Now;
-            await gameDb.Query(TableNames.UserCharacter)
-                .Where(DbColumns.UserIndex, requestBody.UserIndex)
-                .Where(DbColumns.CharacterIndex, requestBody.EquipCharacterIndex)
-                .UpdateAsync(new
-                {
-                    Is_Active = true,
-                    Equipped_At = today
-                });
 
             return Result.Success();
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[Character] 캐릭터 장착 실패 : {ex.ToString()}");
+            Console.WriteLine($"[Character] 캐릭터 장착 예외 발생: {ex.Message}");
+            Console.WriteLine(ex.StackTrace);
             return Result.Fail(ResultCodes.Equip_Fail_Exception);
         }
     }
@@ -296,7 +309,7 @@ public class CharacterService : ICharacter
             Console.WriteLine($"Db에 존재하지 않는 아이템 인덱스 : {requestBody.GoodsIndex}");
             return Result.Fail(ResultCodes.Equip_Fail_NotExist);
         }
-
+ 
         return await _connectionManager.ExecuteInTransactionAsync(DbKeys.GameServerDB, async (db, transaction) =>
         {
             // 1. 재화 소모
