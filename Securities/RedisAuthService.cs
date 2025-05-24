@@ -13,6 +13,11 @@ public class RedisAuthService : IRedisAuthService
 
     public RedisAuthService(IConnectionMultiplexer redis, IConfiguration configuration)
     {
+        if(redis == null)
+        {
+            Console.WriteLine("Redis 연결 없음");
+        }
+
         _db = redis.GetDatabase();
         _ttlMinutes = configuration.GetSection("Auth").GetValue<int>("TokenExpireMinutes", 100);
         _ttl = TimeSpan.FromMinutes(_ttlMinutes);

@@ -1,4 +1,5 @@
 ﻿using static chrispserver.ResReqModels.Enums;
+using static chrispserver.ResReqModels.Response;
 
 namespace chrispserver.ResReqModels;
 
@@ -32,6 +33,7 @@ public class Request
         public string DeviceId { get; set; } = string.Empty;
         public string? Nickname { get; set; }
     }
+
     #endregion
 
 
@@ -71,6 +73,30 @@ public class Request
     public class Req_ReceiveMission : Req_UserAuth
     {
         public int DailyMissionIndex { get; set; }
+    }
+    #endregion
+
+
+    // test code 
+    #region
+    public class Req_UpdateNickname
+    {
+        public int UserIndex { get; set; }
+        public string Nickname { get; set; } = string.Empty;
+    }
+
+    public class Req_AddGoods
+    {
+        public int UserIndex { get; set; }
+        public int GoodsIndex { get; set; } // 예: 1 = 밥, 2 = 장난감
+        public int Quantity { get; set; }
+    }
+
+    public class Res_UserWithGoods
+    {
+        public int user_Index { get; set; }
+        public string? nickname { get; set; }
+        public List<User_Goods> user_Goods { get; set; } = new();
     }
     #endregion
 }
