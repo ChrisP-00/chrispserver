@@ -415,7 +415,7 @@ FodyWeavers.xsd
 *.msm
 *.msp
 
-# JetBrains Rider
+
 *.sln.iml
-Properties/ServiceDependencies/chrispserver - Web Deploy/profile.arm.json
-.config/dotnet-tools.json
+*profile.arm.json
+*.config/dotnet-tools.json
