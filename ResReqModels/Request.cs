@@ -1,6 +1,4 @@
-﻿using chrispserver.DbConfigurations;
-using static chrispserver.ResReqModels.Enums;
-using static chrispserver.ResReqModels.Response;
+﻿using static chrispserver.ResReqModels.Enums;
 
 namespace chrispserver.ResReqModels;
 
@@ -10,28 +8,25 @@ public class Request
     public interface IUserAuth
     {
         public int UserIndex { get; set; }
-    }
-
-    public interface IMemberId
-    {
-        public string MemberId { get; set; }
+        public string DeviceId { get; set; }
     }
 
     public class Req_UserAuth : IUserAuth
     {
         public int UserIndex { get; set; }
+        public string DeviceId { get; set; } = string.Empty;
     }
 
 
     #region 계정 관련 모델
-    public class Req_CreateAccount : IMemberId
+    public class Req_CreateAccount
     {
         public string MemberId { get; set; } = string.Empty;
         public string DeviceId { get; set; } = string.Empty;
         public string? Nickname { get; set; }
     }
 
-    public class Req_Login : IMemberId
+    public class Req_Login
     {
         public string MemberId { get; set; } = string.Empty;
         public string DeviceId { get; set; } = string.Empty;

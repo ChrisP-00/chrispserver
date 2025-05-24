@@ -17,7 +17,7 @@ public class ConnectionManager : IDisposable
         _configuration = configuration;
         _connectionStrings = new ConcurrentDictionary<string, string>
         {
-            [DbKeys.MasterDataDB] = _configuration.GetConnectionString(DbKeys.MasterDataDB)!,
+            [DbKeys.MasterDB] = _configuration.GetConnectionString(DbKeys.MasterDB)!,
             [DbKeys.GameServerDB] = _configuration.GetConnectionString(DbKeys.GameServerDB)!
         };
     }

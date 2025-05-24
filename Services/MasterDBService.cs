@@ -25,7 +25,7 @@ public class MasterDBService : IMaster
     {
         try
         {
-            using var db = _connectionManager.GetSqlQueryFactory(DbKeys.MasterDataDB);
+            using var db = _connectionManager.GetSqlQueryFactory(DbKeys.MasterDB);
 
             InfoCharacters = (await db.Query(TableNames.InfoCharacter).GetAsync<InfoCharacter>()).ToList();
             InfoDailyMissions = (await db.Query(TableNames.InfoDailyMission).GetAsync<InfoDailyMission>()).ToList();
