@@ -6,35 +6,76 @@
 </head>
 <body>
     <h1>🌱 ChrispServer API 테스트</h1>
+    <meta charset="UTF-8" />
+    <p style="font-size: 0.9em; color: gray; margin-top: 1em;">
+        ⚠️ 본 API 서버는 Azure의 무료 요금제 환경에서 동작 중이며, <strong>cold start</strong> 현상으로 인해<br />
+        초기 요청이 실패하거나 지연될 수 있습니다.<br />
+        이는 App Service의 자동 슬립 정책 때문이며,
+        테스트 중 오류가 발생하더라도, <strong>5 ~ 10초 후 재시도</strong> 시 정상 응답됩니다.
+    </p>
+
+    <!-- 계정 삭제 -->
+    <h2> 🛠 관리자 도구: 계정 목록 및 삭제</h2>
+    <button onclick="fetchAllAccounts()">전체 계정 불러오기</button>
+    <p style="font-size: 0.9em; color: gray;">
+        ※ 서버에 저장된 전체 계정을 불러옵니다. <br />
+    </p>
+    <div id="accountList"></div>
+    <button onclick="deleteSelectedAccounts()">선택한 계정 삭제</button>
+    <p style="font-size: 0.9em; color: gray;">
+        ※ 선택한 계정은 DB에서 삭제됩니다. (테스트 한정)
+    </p>
 
     <!-- 로그인 -->
-    <h2>1. 로그인 또는 계정 생성</h2>
+    <h2> 🖥️ 로그인 또는 계정 생성</h2>
     <input id="deviceId" placeholder="DeviceId" />
     <input id="memberId" placeholder="MemberId (선택)" />
     <input id="nickname" placeholder="Nickname (선택)" />
     <button onclick="login()">Login</button>
+    <p style="font-size: 0.9em; color: gray;">
+        ※ 로그인은 인증 토큰을 받기 위한 용도입니다. <br />
+        테스트는 로그인한 계정 기준으로 아래 작업이 수행됩니다.
+    </p>
 
-    <!-- 유저 정보 -->
-    <h2>2. 유저 요약 정보</h2>
-    <div id="userSummary" style="background:#eef;padding:1em;"></div>
+    <div id="loginSummary" style="margin-top: 1em; font-size: 0.9em; color: #333;">
+        <strong>🔐 로그인 계정 정보</strong><br />
+        <span id="loginInfoContent">아직 로그인하지 않았습니다.</span>
+    </div>
+
+    <!-- 닉네임 변경 -->
+    <h2> 💡 닉네임 변경</h2>
+    <input id="newNickname" placeholder="새 닉네임 (10자 이내, 특수문자 제외)" />
+    <button onclick="updateNickname()">닉네임 변경</button>
+    <p style="font-size: 0.9em; color: gray; margin-top: 4px;">
+        ※ 로그인한 계정의 닉네임을 변경합니다. <br />
+        닉네임은 <strong>10자 이내</strong>, <strong>영문/한글/숫자만 가능</strong>, <strong>특수문자 및 공백 불가</strong>
+    </p>
+
 
     <!-- 마스터 캐릭터 드롭다운 -->
-    <h3>🧍 전체 캐릭터 선택 (마스터 DB)</h3>
+    <h2> 🧍 변경 캐릭터 선택 </h2>
     <select id="selectCharacter" style="min-width: 200px;"></select>
     <button onclick="equipSelectedCharacter()">장착하기</button>
 
-    <!-- 미션 보상 -->
-    <h3>🎯 미션 보상 수령</h3>
-    <input id="missionIndex" placeholder="DailyMissionIndex" />
-    <button onclick="receiveMission()">Receive Mission</button>
-
     <!-- 행동 -->
-    <h2>3. 행동 (밥주기/놀기)</h2>
+    <h2> 🍎 행동 (밥주기/놀기)</h2>
     <button onclick="playStatus(1, 1, 1)">🍚 밥 주기 (Food)</button>
     <button onclick="playStatus(2, 2, 1)">🧸 놀기 (Toy)</button>
 
+    <!-- 재화 추가 -->
+    <h2> 🧪 테스트용 재화 추가</h2>
+    <label>
+        재화 선택:
+        <select id="goodsType">
+            <option value="1">🍚 밥 (Food)</option>
+            <option value="2">🧸 장난감 (Toy)</option>
+        </select>
+    </label>
+    <input id="goodsAmount" type="number" placeholder="수량" style="width: 80px;" />
+    <button onclick="addGoods()">재화 추가</button>
+
     <!-- 결과 -->
-    <h2>4. 결과</h2>
+    <h2> 결과</h2>
     <pre id="result" style="background:#f4f4f4;padding:1em;"></pre>
 
     <script>
@@ -44,6 +85,11 @@
         let currentUser = null;
         let masterCharacters = [];
 
+        // 페이지 진입 시 1회만 호출
+        window.onload = async () => {
+            await fetchMasterCharacters(); // ✅ 최초 1회만
+        };
+
         // Azure에 배포된 API 엔드포인트
         const apiBase = "https://chrispserver-api-g4h3hsaed5dtaeeh.koreacentral-01.azurewebsites.net";
 
@@ -52,18 +98,135 @@
             document.getElementById("result").textContent = JSON.stringify(obj, null, 2);
         }
 
-        // 유저 요약 정보 출력
-        function showUserSummary() {
-            if (!currentUser) return;
+        // 전체 계정 출력
+        function renderAccounts(accounts) {
+            const listEl = document.getElementById("accountList");
+            listEl.innerHTML = "";
 
-            const summaryEl = document.getElementById("userSummary");
-            summaryEl.innerHTML = `
-            <strong>닉네임:</strong> ${currentUser.userAccount?.nickname}<br/>
-            <strong>UserIndex:</strong> ${userIndex}<br/>
-            <strong>재화:</strong><br/>
-            ${currentUser.userGoods?.map(g => `- Goods ${g.goods_Index}: ${g.quantity}`).join("<br/>") || "없음"}
-          `;
+            accountList = accounts;
+
+            accounts.forEach(acc => {
+                const row = document.createElement("div");
+                row.innerHTML = `
+                                                        <label>
+                                                            <input type="radio" name="selectedUser" value="${acc.user_Index}" onchange="onUserSelect(this.value)" />
+                                                            [UserIndex: ${acc.user_Index}] MemberId: ${acc.member_Id}, DeviceId: ${acc.device_Id}, Nickname: ${acc.nickname}
+                                                        </label>
+                                                    `;
+                listEl.appendChild(row);
+            });
         }
+
+        // 로그인 계정 출력
+        function renderLoginInfo(user) {
+            if (!user || !user.userAccount) return;
+
+            const account = user.userAccount;
+            const goods = user.userGoods || [];
+            const characters = user.userCharacters || [];
+            const activeChar = characters.find(c => c.is_Active);
+
+            const food = goods.find(g => g.goods_Index === 1)?.quantity || 0;
+            const toy = goods.find(g => g.goods_Index === 2)?.quantity || 0;
+
+
+            let characterInfoHtml = "";
+            if (activeChar) {
+                const masterChar = masterCharacters.find(m => m.character_Index === activeChar.character_Index);
+                const charName = masterChar ? masterChar.character_Name : "(이름 없음)";
+
+                characterInfoHtml = `
+                        <br/> 장착 캐릭터 <br/>
+                        - 인덱스 : ${activeChar.character_Index} <br/>
+                        - 이름: ${charName}<br/>
+                        - 레벨 : ${activeChar.level} <br/>
+                        - 경험치 : ${activeChar.exp}
+                        `;
+            }
+            else {
+                characterInfoHtml = "<br/> 장착 캐릭터 없음";
+            }
+
+            document.getElementById("loginInfoContent").innerHTML = `
+                            UserIndex: <strong>${account.user_Index}</strong><br/>
+                            MemberId: ${account.member_Id || "-"}<br/>
+                            DeviceId: ${account.device_Id || "-"}<br/>
+                            Nickname: ${account.nickname || "-"}<br/>
+
+                            🍚 보유 밥: ${food}개<br/>
+                            🧸 보유 장난감: ${toy}개 <br/>
+                            ${characterInfoHtml}
+                        `;
+        }
+
+        // 마스터DB의 캐릭터 리스트 가져와서 드롭다운에 렌더링
+        async function fetchMasterCharacters() {
+            const res = await fetch(`${apiBase}/Test/Characters`);
+            const json = await res.json();
+            masterCharacters = json.data || [];
+
+            const select = document.getElementById("selectCharacter");
+            select.innerHTML = "";
+
+            for (const char of masterCharacters) {
+                const option = document.createElement("option");
+                option.value = char.character_Index;
+                option.textContent = `#${char.character_Index} - ${char.character_Name}`;
+                select.appendChild(option);
+            }
+        }
+
+        let accountList = [];
+
+        // 전체 계정 불러오기
+        async function fetchAllAccounts() {
+            const res = await fetch(`${apiBase}/Test/GetAllAccounts`);
+            const text = await res.text();
+
+            try {
+                const json = JSON.parse(text);
+                updateResult(json);
+
+                if (json.resultCode === 0) {
+                    renderAccounts(json.data);
+                }
+
+            } catch (err) {
+                console.error("⚠ JSON 파싱 실패, 서버 응답:", text);
+            }
+
+        }
+
+        // 선택된 계정 삭제하기
+        async function deleteSelectedAccounts() {
+            const checkboxes = document.querySelectorAll("#accountList input[type='checkbox']:checked");
+            const userIndexes = Array.from(checkboxes).map(cb => parseInt(cb.value));
+
+            if (userIndexes.length === 0) {
+                alert("삭제할 계정을 선택해주세요.");
+                return;
+            }
+
+            const res = await fetch(`${apiBase}/Test/DeleteAccounts`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ userIndexes })
+            });
+
+            const json = await res.json();
+            updateResult(json);
+
+            if (json.resultCode === 0) {
+                alert("삭제가 완료되었습니다.");
+                await fetchAllAccounts(); // 목록 새로고침
+            }
+            else {
+                alert(`삭제 실패: ${json.resultMessage}`);
+            }
+
+            await fetchAllAccounts(); // 목록 새로고침
+        }
+
 
         // 로그인 또는 계정 생성
         async function login() {
@@ -84,26 +247,37 @@
             userIndex = json.data?.userAccount?.user_Index || 0;
             currentUser = json.data;
 
-            showUserSummary();
-            await fetchMasterCharacters(); // 마스터 캐릭터 목록 가져오기
+            renderLoginInfo(currentUser);
         }
 
-        // 마스터DB의 캐릭터 리스트 가져와서 드롭다운에 렌더링
-        async function fetchMasterCharacters() {
-            const res = await fetch(`${apiBase}/Test/Characters`);
+        // 선택한 유저 닉네임 변경
+        async function updateNickname() {
+            const nickname = document.getElementById("newNickname").value.trim();
+
+            // 닉네임 유효성 검사
+            const nicknameRegex = /^[가-힣a-zA-Z0-9]{1,10}$/;
+            if (!nicknameRegex.test(nickname)) {
+                alert("닉네임은 1~10자 이내의 한글, 영어, 숫자만 사용할 수 있어요. 특수문자와 공백은 사용할 수 없습니다.");
+                return;
+            }
+
+            const res = await fetch(`${apiBase}/Test/UpdateNickname`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ userIndex, nickname }) // 전역 userIndex 사용
+            });
+
             const json = await res.json();
-            masterCharacters = json.data || [];
+            updateResult(json);
 
-            const select = document.getElementById("selectCharacter");
-            select.innerHTML = "";
-
-            for (const char of masterCharacters) {
-                const option = document.createElement("option");
-                option.value = char.character_Index;
-                option.textContent = `#${char.character_Index} - ${char.character_Name}`;
-                select.appendChild(option);
+            if (json.resultCode === 0) {
+                alert("닉네임 변경 완료!");
+                await login(); // 닉네임 반영
+            } else {
+                alert(`변경 실패: ${json.resultMessage}`);
             }
         }
+
 
         // 선택된 캐릭터 장착하기
         async function equipSelectedCharacter() {
@@ -121,26 +295,11 @@
 
             const json = await res.json();
             updateResult(json);
-            await login(); // 장착 후 정보 갱신
+
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            await login();
         }
 
-        // 미션 보상 수령
-        async function receiveMission() {
-            const missionIndex = parseInt(document.getElementById("missionIndex").value);
-
-            const res = await fetch(`${apiBase}/Reward/ReceiveMission`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": "Bearer " + token,
-                    "X-Device-Id": deviceId
-                },
-                body: JSON.stringify({ UserIndex: userIndex, DailyMissionIndex: missionIndex })
-            });
-
-            const json = await res.json();
-            updateResult(json);
-        }
 
         // 행동 API 호출 (밥 주기 / 놀기)
         async function playStatus(goodType, goodsIndex, quantity) {
@@ -161,7 +320,51 @@
 
             const json = await res.json();
             updateResult(json);
+            await login();
         }
+
+        // 테스트용 재화 추가
+        async function addGoods() {
+            const goodsIndex = parseInt(document.getElementById("goodsType").value);
+            const quantity = parseInt(document.getElementById("goodsAmount").value);
+
+            if (userIndex <= 0 || quantity <= 0) {
+                alert("유효한 유저와 수량을 입력하세요.");
+                return;
+            }
+
+            // 현재 로그인한 유저가 가진 재화 확인
+            const currentAmount = currentUser.userGoods?.find(g => g.goods_Index === goodsIndex)?.quantity || 0;
+
+            // 이미 10개 이상이면 추가 막기
+            if (currentAmount >= 10) {
+                alert("이미 이 재화를 10개 이상 보유하고 있어 추가할 수 없습니다.");
+                return;
+            }
+
+            // 총합이 10을 넘으면 막기 (예: 9개 있는데 2개 추가하려는 경우)
+            if (currentAmount + quantity > 10) {
+                alert(`최대 보유 수량은 10개입니다. 현재 ${currentAmount}개 보유 중입니다.`);
+                return;
+            }
+
+            const res = await fetch(`${apiBase}/Test/AddGoods`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ userIndex, goodsIndex, quantity })
+            });
+
+            const json = await res.json();
+            updateResult(json);
+
+            if (json.resultCode === 0) {
+                alert("재화가 추가되었습니다.");
+                await login(); // 재화 UI 갱신
+            } else {
+                alert("추가 실패: " + json.resultMessage);
+            }
+        }
+
     </script>
 </body>
 </html>

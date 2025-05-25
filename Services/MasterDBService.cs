@@ -25,28 +25,64 @@ public class MasterDBService : IMaster
     {
         try
         {
-            using var db = _connectionManager.GetSqlQueryFactory(DbKeys.MasterDB);
+            var charactersTask = Task.Run(async () =>
+            {
+                using var db = _connectionManager.GetSqlQueryFactory(DbKeys.MasterDB);
+                return await db.Query(TableNames.InfoCharacter).GetAsync<InfoCharacter>();
+            });
 
-            InfoCharacters = (await db.Query(TableNames.InfoCharacter).GetAsync<InfoCharacter>()).ToList();
-            InfoDailyMissions = (await db.Query(TableNames.InfoDailyMission).GetAsync<InfoDailyMission>()).ToList();
-            InfoDefines = (await db.Query(TableNames.InfoDefine).GetAsync<InfoDefine>()).ToList();
-            InfoGoods = (await db.Query(TableNames.InfoGoods).GetAsync<InfoGoods>()).ToList();
-            InfoItems = (await db.Query(TableNames.InfoItem).GetAsync<InfoItem>()).ToList();
-            InfoLevels = (await db.Query(TableNames.InfoLevels).GetAsync<InfoLevel>()).ToList();
+            var missionsTask = Task.Run(async () =>
+            {
+                using var db = _connectionManager.GetSqlQueryFactory(DbKeys.MasterDB);
+                return await db.Query(TableNames.InfoDailyMission).GetAsync<InfoDailyMission>();
+            });
+
+            var definesTask = Task.Run(async () =>
+            {
+                using var db = _connectionManager.GetSqlQueryFactory(DbKeys.MasterDB);
+                return await db.Query(TableNames.InfoDefine).GetAsync<InfoDefine>();
+            });
+
+            var goodsTask = Task.Run(async () =>
+            {
+                using var db = _connectionManager.GetSqlQueryFactory(DbKeys.MasterDB);
+                return await db.Query(TableNames.InfoGoods).GetAsync<InfoGoods>();
+            });
+
+            var itemsTask = Task.Run(async () =>
+            {
+                using var db = _connectionManager.GetSqlQueryFactory(DbKeys.MasterDB);
+                return await db.Query(TableNames.InfoItem).GetAsync<InfoItem>();
+            });
+
+            var levelsTask = Task.Run(async () =>
+            {
+                using var db = _connectionManager.GetSqlQueryFactory(DbKeys.MasterDB);
+                return await db.Query(TableNames.InfoLevels).GetAsync<InfoLevel>();
+            });
+
+            await Task.WhenAll(charactersTask, missionsTask, definesTask, goodsTask, itemsTask, levelsTask);
+
+            InfoCharacters = (await charactersTask).ToList();
+            InfoDailyMissions = (await missionsTask).ToList();
+            InfoDefines = (await definesTask).ToList();
+            InfoGoods = (await goodsTask).ToList();
+            InfoItems = (await itemsTask).ToList();
+            InfoLevels = (await levelsTask).ToList();
 
             foreach (var c in InfoLevels)
             {
                 Console.WriteLine($"[InfoLevels] Index: {c.Level_Index}");
             }
             Console.WriteLine($"[MasterDB] InfoLevels 로딩 수: {InfoLevels.Count}");
-
             Console.WriteLine("[MasterDB] 모든 마스터 데이터 로딩 완료");
         }
         catch (Exception ex)
-        { 
-            Console.WriteLine($"[MasterDB] 모든 마스터 데이터 로딩 실패 : {ex.ToString()}");
+        {
+            Console.WriteLine($"[MasterDB] 마스터 데이터 로딩 실패 : {ex}");
             throw;
         }
     }
+
 }
 

@@ -92,11 +92,5 @@ public class Request
         public int Quantity { get; set; }
     }
 
-    public class Res_UserWithGoods
-    {
-        public int user_Index { get; set; }
-        public string? nickname { get; set; }
-        public List<User_Goods> user_Goods { get; set; } = new();
-    }
     #endregion
 }

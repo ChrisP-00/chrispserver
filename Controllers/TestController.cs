@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using SqlKata.Execution;
 using System.Text.RegularExpressions;
 using static chrispserver.DbEntity.InfoEntities;
+using static chrispserver.DbEntity.UserEntities;
 using static chrispserver.ResReqModels.Request;
 using static chrispserver.ResReqModels.Response;
 
@@ -68,21 +69,23 @@ public class TestController : ControllerBase
     }
 
     [HttpGet("GetUserById")]
-    public async Task<Result<Res_UserWithGoods>> GetUserById([FromQuery] int userIndex)
+    public async Task<Result<Res_UserForTest>> GetUserById([FromQuery] int userIndex)
     {
         var db = _connectionManager.GetSqlQueryFactory(DbKeys.GameServerDB);
 
         var account = await db.Query("user_account").Where("user_index", userIndex).FirstOrDefaultAsync<User_Account>();
         var goods = await db.Query("user_goods").Where("user_index", userIndex).GetAsync<User_Goods>();
+        var characters = await db.Query("user_character").Where("user_index", userIndex).GetAsync<User_Character>();
 
         if (account == null)
-            return Result<Res_UserWithGoods>.Fail(ResultCodes.No_Account);
+            return Result<Res_UserForTest>.Fail(ResultCodes.No_Account);
 
-        return Result<Res_UserWithGoods>.Success(new Res_UserWithGoods
+        return Result<Res_UserForTest>.Success(new Res_UserForTest
         {
             user_Index = account.User_Index,
             nickname = account.Nickname,
-            user_Goods = goods.ToList()
+            user_Goods = goods.ToList(),
+            user_Character = characters.ToList(),
         });
     }
 

@@ -78,4 +78,17 @@ public class Response
         public bool Is_Received { get; set; }
     }
     #endregion
+
+
+
+    // test Code 
+    #region
+    public class Res_UserForTest
+    {
+        public int user_Index { get; set; }
+        public string? nickname { get; set; }
+        public List<User_Goods> user_Goods { get; set; } = new();
+        public List<User_Character> user_Character { get; set; } = new();
+    }
+    #endregion
 }
