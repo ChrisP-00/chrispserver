@@ -418,4 +418,4 @@ FodyWeavers.xsd
 
 *.sln.iml
 *profile.arm.json
-*.config/dotnet-tools.json
+/.config
