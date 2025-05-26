@@ -108,11 +108,11 @@
             accounts.forEach(acc => {
                 const row = document.createElement("div");
                 row.innerHTML = `
-                                                        <label>
-                                                            <input type="radio" name="selectedUser" value="${acc.user_Index}" onchange="onUserSelect(this.value)" />
-                                                            [UserIndex: ${acc.user_Index}] MemberId: ${acc.member_Id}, DeviceId: ${acc.device_Id}, Nickname: ${acc.nickname}
-                                                        </label>
-                                                    `;
+                    <label>
+                        <input type="checkbox" value="${acc.user_Index}" />
+                        [UserIndex: ${acc.user_Index}] MemberId: ${acc.member_Id}, DeviceId: ${acc.device_Id}, Nickname: ${acc.nickname}
+                    </label>
+                `;
                 listEl.appendChild(row);
             });
         }

@@ -5,6 +5,7 @@ public class Result
 {
     public ResultCodes ResultCode { get; set; }
     public string? ResultMessage { get; set; }
+    public string? Message { get; set; }
     public bool IsSuccess => ResultCode == ResultCodes.Ok;
 
 
@@ -14,7 +15,16 @@ public class Result
         ResultMessage = resultMessage;
     }
 
+    public Result(ResultCodes resultCode, string? resultMessage, string msg)
+    {
+        ResultCode = resultCode;
+        ResultMessage = resultMessage;
+        Message = msg;
+    }
+
     public static Result Success() => new Result(ResultCodes.Ok,ResultCodes.Ok.ToString());
+
+    public static Result Success(string msg) => new Result(ResultCodes.Ok, ResultCodes.Ok.ToString(), msg);
 
     public static Result Fail(ResultCodes resultCode) => new Result(resultCode, resultCode.ToString());
 

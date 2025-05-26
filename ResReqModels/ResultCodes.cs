@@ -8,6 +8,10 @@ public enum ResultCodes
     [Description("성공")]
     Ok = 0,
 
+
+    [Description("DB 연결 실패")]
+    DBConnectionFail = -9,
+
     // 1 ~ 9
     [Description("필수 입력 필드 누락")]
     InputData_MissingRequiredField = -1,
