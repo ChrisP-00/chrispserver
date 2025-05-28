@@ -1,11 +1,11 @@
 ﻿using chrispserver.ResReqModels;
+using chrispserver.Securities;
 using chrispserver.Services;
+using chrispserver.Utilities;
 using Microsoft.AspNetCore.Mvc;
 using System.Text.Json;
-using static chrispserver.ResReqModels.Response;
 using static chrispserver.ResReqModels.Request;
-using chrispserver.Securities;
-using chrispserver.Utilities;
+using static chrispserver.ResReqModels.Response;
 
 namespace chrispserver.Controllers;
 
@@ -60,4 +60,5 @@ public class AccountController : ControllerBase
         bool success = await _redisAuthService.RevokeTokenAsync(token);
         return success ? Result.Success() : Result.Fail(ResultCodes.Logout_Fail_Exception);
     }
+
 }

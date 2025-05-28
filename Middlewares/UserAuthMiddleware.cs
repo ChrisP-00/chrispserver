@@ -24,7 +24,8 @@ public class UserAuthMiddleware
         // account/LoginOrCreateAccount 요청은 넘기기
         if (context.Request.Method != HttpMethods.Post ||
             context.Request.Path.Value?.StartsWith("/Account/LoginOrCreateAccount", StringComparison.OrdinalIgnoreCase) == true ||
-            context.Request.Path.StartsWithSegments("/test", StringComparison.OrdinalIgnoreCase))
+            context.Request.Path.StartsWithSegments("/test", StringComparison.OrdinalIgnoreCase) ||
+            context.Request.Path.StartsWithSegments("/Health/Ping", StringComparison.OrdinalIgnoreCase))
         {
             await _nextTask(context);
             return;

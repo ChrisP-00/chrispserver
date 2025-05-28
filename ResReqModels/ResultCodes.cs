@@ -8,9 +8,18 @@ public enum ResultCodes
     [Description("성공")]
     Ok = 0,
 
+
+    [Description("DB 연결 실패")]
+    DBConnectionFail = -9,
+
     // 1 ~ 9
     [Description("필수 입력 필드 누락")]
-    InputData_MissingRequiredField = 0001,
+    InputData_MissingRequiredField = -1,
+
+    // -100 ~ -200 test 
+    [Description("")]
+    TestFailException = -199,
+
 
     // 트렌젝션 오류 -1000 ~ -1099
     Transaction_Fail_Rollback = -1001,
@@ -21,19 +30,19 @@ public enum ResultCodes
     AuthTokenFailSetNx = -1101,
 
     [Description("유효하지 않은 요청")]
-    InValidRequestHttpBody,
+    InValidRequestHttpBody = -1102,
 
     [Description("Auth Token Fail")]
-    AuthTokenFailWrongKeyword,
+    AuthTokenFailWrongKeyword = -1103,
 
     [Description("잘못된 유저 Auth Token")]
-    AuthTokenFailWrongUserAuthToken,
+    AuthTokenFailWrongUserAuthToken = -1104,
 
     [Description("잘못된 게스트 Auth Token")]
-    AuthTokenFailWrongGuestAuthToken,
+    AuthTokenFailWrongGuestAuthToken = -1105,
 
     [Description("중복된 로그인")]
-    AuthTokenFailDuplicatedLogin,
+    AuthTokenFailDuplicatedLogin = -1106,
 
     // 계정 오류 -2000 ~ -2499
     [Description("계정이 중복됨")]
